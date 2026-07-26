@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -31,32 +31,21 @@ import { Badge } from "@/components/ui/badge"
 import { Plus, Search, Shield } from "lucide-react"
 import { format } from "date-fns"
 import { toast } from "sonner"
-import { createClient } from "@/lib/supabase/client"
-
-interface UserRow {
-  id: string
-  email: string
-  name: string
-  role: string
-  created_at: string
-}
+import { listUsersAction, createUserAction } from "@/lib/actions/admin"
 
 export default function AkunPage() {
+  const queryClient = useQueryClient()
   const [search, setSearch] = useState("")
 
   const { data: users = [], isLoading } = useQuery({
-    queryKey: ["users"],
+    queryKey: ["admin-users"],
     queryFn: async () => {
-      const supabase = createClient()
-      const { data, error } = await supabase
-        .from("users")
-        .select("*")
-        .order("created_at", { ascending: false })
-      if (error) {
-        console.warn("Users table may not exist yet:", error.message)
-        return [] as UserRow[]
+      try {
+        return await listUsersAction()
+      } catch (err) {
+        console.warn("Admin API error:", err)
+        return [] as Awaited<ReturnType<typeof listUsersAction>>
       }
-      return (data ?? []) as UserRow[]
     },
   })
 
@@ -72,7 +61,7 @@ export default function AkunPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">Manajemen Akun</h1>
-          <p className="text-sm text-muted-foreground">Kelola pengguna dan peran akses.</p>
+          <p className="text-sm text-muted-foreground">Kelola pengguna dan peran akses via Supabase Auth.</p>
         </div>
         <Dialog>
           <DialogTrigger>
@@ -85,7 +74,9 @@ export default function AkunPage() {
             <DialogHeader>
               <DialogTitle className="text-foreground">Tambah User Baru</DialogTitle>
             </DialogHeader>
-            <AddUserForm />
+            <AddUserForm
+              onSuccess={() => queryClient.invalidateQueries({ queryKey: ["admin-users"] })}
+            />
           </DialogContent>
         </Dialog>
       </div>
@@ -104,7 +95,14 @@ export default function AkunPage() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <p className="py-8 text-center text-muted-foreground">Memuat data...</p>
+            <p className="py-8 text-center text-muted-foreground">Memuat data user...</p>
+          ) : users.length === 0 ? (
+            <div className="py-12 text-center">
+              <p className="text-muted-foreground">
+                Tambahkan <code className="bg-muted px-1 rounded">SUPABASE_SERVICE_ROLE_KEY</code> ke
+                environment variables untuk mengaktifkan manajemen user via Supabase Auth Admin API.
+              </p>
+            </div>
           ) : (
             <Table>
               <TableHeader>
@@ -113,16 +111,13 @@ export default function AkunPage() {
                   <TableHead className="text-muted-foreground">Email</TableHead>
                   <TableHead className="text-muted-foreground">Role</TableHead>
                   <TableHead className="text-muted-foreground">Terdaftar</TableHead>
-                  <TableHead className="text-right text-muted-foreground">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                      {users.length === 0
-                        ? "Tabel users belum tersedia. Integrasi Supabase Auth akan datang."
-                        : "Tidak ditemukan."}
+                    <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                      Tidak ditemukan.
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -133,7 +128,7 @@ export default function AkunPage() {
                           <div className="flex size-8 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground">
                             {(user.name ?? "U")
                               .split(" ")
-                              .map((n) => n[0])
+                              .map((n: string) => n[0])
                               .join("")
                               .slice(0, 2)
                               .toUpperCase()}
@@ -157,16 +152,6 @@ export default function AkunPage() {
                       <TableCell className="text-muted-foreground">
                         {format(new Date(user.created_at), "dd MMM yyyy")}
                       </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-muted-foreground hover:text-orange-400"
-                          onClick={() => toast.info("Integrasi Supabase Auth akan datang.")}
-                        >
-                          Edit Role
-                        </Button>
-                      </TableCell>
                     </TableRow>
                   ))
                 )}
@@ -179,17 +164,28 @@ export default function AkunPage() {
   )
 }
 
-function AddUserForm() {
+function AddUserForm({ onSuccess }: { onSuccess: () => void }) {
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
   const [role, setRole] = useState("sales")
+  const [submitting, setSubmitting] = useState(false)
 
-  const handleSubmit = () => {
-    if (!name || !email) {
-      toast.error("Nama dan email wajib diisi!")
+  const handleSubmit = async () => {
+    if (!name || !email || !password) {
+      toast.error("Semua field wajib diisi!")
       return
     }
-    toast.info("Fitur tambah user akan tersedia dengan Supabase Auth.")
+    setSubmitting(true)
+    try {
+      await createUserAction(email, password, name, role)
+      toast.success(`User "${name}" berhasil dibuat!`)
+      onSuccess()
+    } catch (err) {
+      toast.error(`Gagal: ${err instanceof Error ? err.message : "Unknown"}`)
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -214,8 +210,18 @@ function AddUserForm() {
         />
       </div>
       <div className="space-y-2">
+        <label className="text-sm text-muted-foreground">Password</label>
+        <Input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="Min. 6 karakter"
+          className="border-border bg-muted text-foreground placeholder:text-muted-foreground"
+        />
+      </div>
+      <div className="space-y-2">
         <label className="text-sm text-muted-foreground">Role</label>
-        <Select value={role} onValueChange={(v) => { if (v) setRole(v) }}>
+        <Select value={role} onValueChange={(v) => v && setRole(v)}>
           <SelectTrigger className="border-border bg-muted text-foreground">
             <SelectValue />
           </SelectTrigger>
@@ -225,8 +231,12 @@ function AddUserForm() {
           </SelectContent>
         </Select>
       </div>
-      <Button onClick={handleSubmit} className="w-full bg-orange-500 hover:bg-orange-600">
-        Tambah User
+      <Button
+        onClick={handleSubmit}
+        className="w-full bg-orange-500 hover:bg-orange-600"
+        disabled={submitting}
+      >
+        {submitting ? "Membuat..." : "Tambah User"}
       </Button>
     </div>
   )

@@ -2,14 +2,16 @@
 
 import Image from "next/image"
 import Link from "next/link"
-import { Bell, Sun, Moon, Menu } from "lucide-react"
+import { Bell, Sun, Moon, Menu, PanelLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { SidebarContent } from "@/components/layout/Sidebar"
+import { useSidebarStore } from "@/store/useSidebarStore"
 import { useTheme } from "next-themes"
 
 export function Topbar() {
   const { theme, setTheme } = useTheme()
+  const toggleSidebar = useSidebarStore((s) => s.toggle)
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b border-border bg-background/80 px-4 md:px-6 backdrop-blur-sm">
@@ -24,6 +26,16 @@ export function Topbar() {
             <SidebarContent />
           </SheetContent>
         </Sheet>
+
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={toggleSidebar}
+          className="hidden md:flex text-muted-foreground hover:text-foreground"
+          aria-label="Toggle Sidebar"
+        >
+          <PanelLeft className="size-5" />
+        </Button>
 
         <Link href="/" className="flex items-center shrink-0">
           <Image

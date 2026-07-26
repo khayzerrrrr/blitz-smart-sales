@@ -4,6 +4,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
+import { useSidebarStore } from "@/store/useSidebarStore"
 import {
   LayoutDashboard,
   MapPin,
@@ -13,7 +14,10 @@ import {
   Users,
   Database,
   ClipboardCheck,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react"
+import { Button } from "@/components/ui/button"
 
 const menuItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -28,23 +32,38 @@ const menuItems = [
 
 export function SidebarContent() {
   const pathname = usePathname()
+  const isCollapsed = useSidebarStore((s) => s.isCollapsed)
+  const toggle = useSidebarStore((s) => s.toggle)
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex h-16 items-center border-b border-border px-5">
-        <Link href="/" className="flex items-center shrink-0">
+      <div
+        className={cn(
+          "flex items-center border-b border-border py-4 transition-all duration-300",
+          isCollapsed ? "justify-center px-2" : "px-5"
+        )}
+      >
+        <Link href="/" className="flex flex-col items-center shrink-0 gap-2">
           <Image
-            src="/logo-dashboard.png"
+            src="/icon-apps.png"
             alt="Blitz CRM"
-            width={130}
-            height={40}
-            className="object-contain w-auto h-8"
+            width={isCollapsed ? 36 : 40}
+            height={isCollapsed ? 36 : 40}
+            className="object-contain shrink-0 transition-all duration-300"
             priority
           />
+          <span
+            className={cn(
+              "text-lg font-bold tracking-tight text-foreground whitespace-nowrap overflow-hidden transition-all duration-300",
+              isCollapsed ? "w-0 opacity-0" : "w-auto opacity-100"
+            )}
+          >
+            Blitz<span className="text-orange-500">CRM</span>
+          </span>
         </Link>
       </div>
 
-      <nav className="flex-1 space-y-1 overflow-y-auto p-4">
+      <nav className="flex-1 space-y-1 overflow-y-auto p-3">
         {menuItems.map((item) => {
           const isActive =
             pathname === item.href ||
@@ -53,11 +72,13 @@ export function SidebarContent() {
             <Link
               key={item.href}
               href={item.href}
+              title={isCollapsed ? item.label : undefined}
               className={cn(
                 "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
                 isActive
                   ? "bg-orange-500/10 text-orange-500"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                isCollapsed && "justify-center px-2"
               )}
             >
               <item.icon
@@ -66,32 +87,74 @@ export function SidebarContent() {
                   isActive ? "text-orange-500" : "text-muted-foreground/60"
                 )}
               />
-              {item.label}
+              <span
+                className={cn(
+                  "whitespace-nowrap overflow-hidden transition-all duration-300",
+                  isCollapsed ? "w-0 opacity-0" : "w-auto opacity-100"
+                )}
+              >
+                {item.label}
+              </span>
             </Link>
           )
         })}
       </nav>
 
-      <div className="border-t border-border p-4">
-        <div className="flex items-center gap-3 rounded-lg px-3 py-2">
-          <div className="flex size-8 items-center justify-center rounded-full bg-muted text-sm font-medium text-muted-foreground">
+      <div className="border-t border-border p-3">
+        <div
+          className={cn(
+            "flex items-center gap-3 rounded-lg px-2 py-2 transition-all duration-300",
+            isCollapsed && "justify-center"
+          )}
+        >
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-medium text-muted-foreground">
             RP
           </div>
-          <div className="flex-1 overflow-hidden">
-            <p className="truncate text-sm font-medium text-foreground">
-              Reza Pahrul
-            </p>
+          <div
+            className={cn(
+              "flex-1 overflow-hidden transition-all duration-300",
+              isCollapsed ? "w-0 opacity-0" : "w-auto opacity-100"
+            )}
+          >
+            <p className="truncate text-sm font-medium text-foreground">Reza Pahrul</p>
             <p className="truncate text-xs text-muted-foreground">Admin</p>
           </div>
         </div>
+
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={toggle}
+          className={cn(
+            "w-full mt-2 text-muted-foreground hover:text-foreground transition-all duration-300",
+            isCollapsed && "mx-auto"
+          )}
+          title={isCollapsed ? "Expand" : "Collapse"}
+        >
+          {isCollapsed ? (
+            <ChevronRight className="size-4" />
+          ) : (
+            <>
+              <ChevronLeft className="size-4" />
+              <span className="ml-2 text-xs">Collapse</span>
+            </>
+          )}
+        </Button>
       </div>
     </div>
   )
 }
 
 export function Sidebar() {
+  const isCollapsed = useSidebarStore((s) => s.isCollapsed)
+
   return (
-    <aside className="hidden md:flex md:w-64 md:shrink-0 md:flex-col md:border-r md:border-border md:bg-background md:sticky md:top-0 md:h-screen">
+    <aside
+      className={cn(
+        "hidden md:flex md:shrink-0 md:flex-col md:border-r md:border-border md:bg-background md:sticky md:top-0 md:h-screen transition-all duration-300",
+        isCollapsed ? "md:w-16" : "md:w-64"
+      )}
+    >
       <SidebarContent />
     </aside>
   )
