@@ -90,10 +90,10 @@ CREATE POLICY "Enable all for authenticated" ON pipelines FOR ALL USING (true) W
 CREATE POLICY "Enable all for authenticated" ON school_photos FOR ALL USING (true) WITH CHECK (true);
 
 -- ============================================
--- Enable Realtime for pipelines table
+-- Enable Realtime for pipelines + photos
 -- ============================================
--- Run this separately after creating the table:
--- ALTER PUBLICATION supabase_realtime ADD TABLE pipelines;
+ALTER PUBLICATION supabase_realtime ADD TABLE pipelines;
+ALTER PUBLICATION supabase_realtime ADD TABLE school_photos;
 
 -- ============================================
 -- Seed Data: Insert sample stock schools
