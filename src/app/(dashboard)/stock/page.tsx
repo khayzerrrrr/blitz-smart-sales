@@ -101,22 +101,32 @@ export default function StockPage() {
       queryClient.invalidateQueries({ queryKey: ["schools"] })
       toast.success(`${data.length} sekolah berhasil di-upload!`)
     },
-    onError: (err: Error) => toast.error(`Gagal upload: ${err.message}`),
+    onError: (err: Error) => {
+      console.warn("Supabase insert failed, adding locally:", err.message)
+      toast.error(`Gagal upload ke server: ${err.message}`)
+    },
   })
 
   const onDrop = useCallback(
     async (files: File[]) => {
       if (files.length === 0) return
+      const file = files[0]
+      console.log("onDrop called with:", file.name, file.type, file.size)
+      toast.info(`Membaca: ${file.name}...`)
+
       try {
-        const rows = await parseFile(files[0])
+        const rows = await parseFile(file)
+        console.log("Parsed rows:", rows.length, rows.slice(0, 2))
         const schools = rows.map(parseSchoolRow).filter(Boolean) as CreateSchoolInput[]
         if (schools.length === 0) {
-          toast.error("Tidak ada data sekolah valid di file.")
+          toast.error("Tidak ada data sekolah valid di file. Pastikan kolom: name, address, regional.")
           return
         }
+        console.log("Schools to insert:", schools)
         batchMutation.mutate(schools)
       } catch (err) {
-        toast.error(`Gagal baca file: ${err instanceof Error ? err.message : "Format tidak valid"}`)
+        console.error("Parse/upload error:", err)
+        toast.error(`Gagal: ${err instanceof Error ? err.message : "Format tidak valid"}`)
       }
     },
     [batchMutation]
@@ -124,12 +134,6 @@ export default function StockPage() {
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: {
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"],
-      "application/vnd.ms-excel": [".xls"],
-      "text/csv": [".csv"],
-      "application/json": [".json"],
-    },
     maxFiles: 1,
   })
 
