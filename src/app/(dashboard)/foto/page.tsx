@@ -24,6 +24,7 @@ import { format } from "date-fns"
 import { createClient } from "@/lib/supabase/client"
 import { fetchAllSchools } from "@/services/school.service"
 import { toast } from "sonner"
+import { useAuthStore } from "@/store/useAuthStore"
 
 export default function FotoPage() {
   const queryClient = useQueryClient()
@@ -158,6 +159,8 @@ function UploadForm({ onSuccess }: { onSuccess: () => void }) {
   const [file, setFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+  const authUser = useAuthStore((s) => s.user)
+  const userName = authUser?.user_metadata?.name ?? authUser?.email ?? "User"
 
   const { data: schools = [] } = useQuery({
     queryKey: ["schools"],
@@ -190,8 +193,8 @@ function UploadForm({ onSuccess }: { onSuccess: () => void }) {
       const { error: dbError } = await supabase.from("school_photos").insert([
         {
           school_id: selectedSchool,
-          school_name: school?.name ?? "",
-          uploaded_by: "Current User",
+            school_name: school?.name ?? "",
+            uploaded_by: userName,
           storage_path: publicUrl.publicUrl,
         },
       ])

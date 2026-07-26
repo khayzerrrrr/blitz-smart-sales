@@ -5,6 +5,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { useSidebarStore } from "@/store/useSidebarStore"
+import { useAuthStore } from "@/store/useAuthStore"
 import {
   LayoutDashboard,
   MapPin,
@@ -34,6 +35,16 @@ export function SidebarContent() {
   const pathname = usePathname()
   const isCollapsed = useSidebarStore((s) => s.isCollapsed)
   const toggle = useSidebarStore((s) => s.toggle)
+  const user = useAuthStore((s) => s.user)
+
+  const userName = user?.user_metadata?.name ?? user?.email?.split("@")[0] ?? "User"
+  const userRole = user?.user_metadata?.role ?? "sales"
+  const initials = userName
+    .split(" ")
+    .map((n: string) => n[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase()
 
   return (
     <div className="flex h-full flex-col">
@@ -67,7 +78,7 @@ export function SidebarContent() {
         {menuItems.map((item) => {
           const isActive =
             pathname === item.href ||
-            (item.href !== "/" && pathname.startsWith(item.href))
+            (item.href !== "/" && pathname?.startsWith(item.href))
           return (
             <Link
               key={item.href}
@@ -108,7 +119,7 @@ export function SidebarContent() {
           )}
         >
           <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-medium text-muted-foreground">
-            RP
+            {initials}
           </div>
           <div
             className={cn(
@@ -116,8 +127,8 @@ export function SidebarContent() {
               isCollapsed ? "w-0 opacity-0" : "w-auto opacity-100"
             )}
           >
-            <p className="truncate text-sm font-medium text-foreground">Reza Pahrul</p>
-            <p className="truncate text-xs text-muted-foreground">Admin</p>
+            <p className="truncate text-sm font-medium text-foreground">{userName}</p>
+            <p className="truncate text-xs text-muted-foreground capitalize">{userRole}</p>
           </div>
         </div>
 

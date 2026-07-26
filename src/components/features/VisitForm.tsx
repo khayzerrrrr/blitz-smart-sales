@@ -29,6 +29,7 @@ import { createVisit, type CreateVisitInput } from "@/services/visit.service"
 import { checkPipelineExists, createPipeline } from "@/services/pipeline.service"
 import { SchoolCombobox } from "@/components/features/SchoolCombobox"
 import { CreateSchoolModal } from "@/components/features/CreateSchoolModal"
+import { useAuthStore } from "@/store/useAuthStore"
 
 interface VisitFormProps {
   onSubmit?: () => void
@@ -38,6 +39,7 @@ export function VisitForm({ onSubmit }: VisitFormProps) {
   const queryClient = useQueryClient()
   const [createModalOpen, setCreateModalOpen] = useState(false)
   const [newSchoolName, setNewSchoolName] = useState("")
+  const authUser = useAuthStore((s) => s.user)
 
   const { data: schools = [] } = useQuery({
     queryKey: ["schools"],
@@ -140,8 +142,8 @@ export function VisitForm({ onSubmit }: VisitFormProps) {
       const selected = schools.find((s) => s.id === values.schoolId)
       const input: CreateVisitInput = {
         school_id: values.schoolId,
-        user_id: "00000000-0000-0000-0000-000000000000",
-        user_name: "Current User",
+        user_id: authUser?.id ?? "00000000-0000-0000-0000-000000000000",
+        user_name: authUser?.user_metadata?.name ?? authUser?.email ?? "User",
         school_name: selected?.name ?? "Unknown",
         visit_date: values.visitDate,
         status: values.status,
