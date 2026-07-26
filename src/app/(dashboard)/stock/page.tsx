@@ -14,7 +14,14 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { useDropzone } from "react-dropzone"
-import { Upload, Search, Trash2, Database, FileSpreadsheet } from "lucide-react"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Upload, Search, Trash2, Database, FileSpreadsheet, Filter } from "lucide-react"
 import { toast } from "sonner"
 import {
   fetchAllSchools,
@@ -80,11 +87,33 @@ function parseSchoolRow(row: Record<string, unknown>): CreateSchoolInput | null 
 export default function StockPage() {
   const queryClient = useQueryClient()
   const [search, setSearch] = useState("")
+  const [regionFilter, setRegionFilter] = useState("all")
 
   const { data: schools = [], isLoading } = useQuery({
     queryKey: ["schools"],
     queryFn: fetchAllSchools,
   })
+
+  const regionGroups: Record<string, string[]> = {
+    "Sumatera": ["Medan", "Pekanbaru", "Palembang", "Padang", "Aceh", "Lampung", "Jambi", "Bengkulu", "Bangka", "Batam"],
+    "Jawa": ["Jakarta Pusat", "Jakarta Barat", "Jakarta Selatan", "Jakarta Timur", "Jakarta Utara", "Bandung", "Semarang", "Yogyakarta", "Surabaya", "Malang", "Tangerang", "Bogor", "Depok", "Bekasi", "Cirebon", "Kediri", "Solo"],
+    "Bali & Nusa Tenggara": ["Denpasar", "Mataram", "Kupang", "Lombok"],
+    "Kalimantan": ["Balikpapan", "Banjarmasin", "Pontianak", "Samarinda", "Palangkaraya"],
+    "Sulawesi": ["Makassar", "Manado", "Palu", "Kendari", "Gorontalo"],
+    "Papua & Maluku": ["Jayapura", "Ambon", "Ternate", "Sorong", "Manokwari"],
+  }
+
+  function getRegionGroup(regional: string): string {
+    if (!regional) return "Lainnya"
+    for (const [group, cities] of Object.entries(regionGroups)) {
+      if (cities.some((c) => regional.toLowerCase().includes(c.toLowerCase()))) {
+        return group
+      }
+    }
+    return "Lainnya"
+  }
+
+  const regionOptions = ["Semua Wilayah", ...Object.keys(regionGroups)]
 
   const deleteMutation = useMutation({
     mutationFn: ({ id }: { id: string; name: string }) => deleteSchool(id),
@@ -138,9 +167,15 @@ export default function StockPage() {
   })
 
   const filtered = schools.filter(
-    (s) =>
-      s.name.toLowerCase().includes(search.toLowerCase()) ||
-      (s.regional ?? "").toLowerCase().includes(search.toLowerCase())
+    (s) => {
+      const matchSearch =
+        s.name.toLowerCase().includes(search.toLowerCase()) ||
+        (s.regional ?? "").toLowerCase().includes(search.toLowerCase())
+      const matchRegion =
+        regionFilter === "all" ||
+        getRegionGroup(s.regional ?? "") === regionFilter
+      return matchSearch && matchRegion
+    }
   )
 
   const handleDelete = (id: string, name: string) => {
@@ -203,14 +238,31 @@ export default function StockPage() {
                 Daftar Stock Database ({schools.length})
               </CardTitle>
             </div>
-            <div className="relative max-w-sm">
-              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Cari nama atau regional..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-9 border-border bg-muted text-foreground placeholder:text-muted-foreground"
-              />
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative w-full sm:w-56">
+                <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Cari nama atau regional..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-9 border-border bg-muted text-foreground placeholder:text-muted-foreground"
+                />
+              </div>
+              <Select value={regionFilter} onValueChange={(v) => v && setRegionFilter(v)}>
+                <SelectTrigger className="border-border bg-muted text-foreground w-full sm:w-44">
+                  <Filter className="size-4 mr-2" />
+                  <SelectValue placeholder="Filter Wilayah" />
+                </SelectTrigger>
+                <SelectContent className="border-border bg-popover text-foreground">
+                  <SelectItem value="all">🌏 Semua Wilayah</SelectItem>
+                  <SelectItem value="Sumatera">🟠 Sumatera</SelectItem>
+                  <SelectItem value="Jawa">🟢 Jawa</SelectItem>
+                  <SelectItem value="Bali & Nusa Tenggara">🔵 Bali & Nusa Tenggara</SelectItem>
+                  <SelectItem value="Kalimantan">🟡 Kalimantan</SelectItem>
+                  <SelectItem value="Sulawesi">🟣 Sulawesi</SelectItem>
+                  <SelectItem value="Papua & Maluku">🔴 Papua & Maluku</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </CardHeader>
