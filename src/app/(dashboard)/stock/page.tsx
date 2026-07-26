@@ -32,6 +32,10 @@ function parseFile(file: File): Promise<Record<string, unknown>[]> {
     reader.onload = (e) => {
       try {
         const data = e.target?.result
+        if (!data) {
+          reject(new Error("File kosong atau tidak dapat dibaca."))
+          return
+        }
         if (ext === "json") {
           const parsed = JSON.parse(data as string)
           resolve(Array.isArray(parsed) ? parsed : [parsed])
@@ -83,9 +87,10 @@ export default function StockPage() {
   })
 
   const deleteMutation = useMutation({
-    mutationFn: deleteSchool,
-    onSuccess: () => {
+    mutationFn: ({ id }: { id: string; name: string }) => deleteSchool(id),
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["schools"] })
+      toast.success(`"${variables.name}" dihapus.`)
     },
     onError: (err: Error) => toast.error(`Gagal hapus: ${err.message}`),
   })
@@ -135,8 +140,7 @@ export default function StockPage() {
   )
 
   const handleDelete = (id: string, name: string) => {
-    deleteMutation.mutate(id)
-    toast.success(`"${name}" dihapus.`)
+    deleteMutation.mutate({ id, name })
   }
 
   return (

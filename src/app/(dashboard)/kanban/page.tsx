@@ -7,8 +7,7 @@ import {
   fetchPipelines,
   updatePipelineStage,
   updatePipelinePrice,
-  createPipeline,
-  type CreatePipelineInput,
+  type PipelineRecord,
 } from "@/services/pipeline.service"
 import { KanbanBoard } from "@/components/features/KanbanBoard"
 import type { PipelineStage } from "@/components/features/KanbanBoard"
@@ -54,16 +53,29 @@ export default function KanbanPage() {
     },
   })
 
-  const addCardMutation = useMutation({
-    mutationFn: (input: CreatePipelineInput) => createPipeline(input),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["pipelines"] })
+  const addCardLocally = useCallback(
+    (stage: PipelineStage) => {
+      const tempId = `local-${crypto.randomUUID().slice(0, 8)}`
+      queryClient.setQueryData<PipelineRecord[]>(["pipelines"], (old = []) => [
+        {
+          id: tempId,
+          school_id: crypto.randomUUID(),
+          school_name: "Prospek Baru",
+          contact_person: "Kontak Person",
+          total_students: 0,
+          stage,
+          offer_price: stage === "Proposal" ? DEFAULT_PROPOSAL_PRICE : null,
+          deal_price: null,
+          last_action: "Kartu baru (lokal)",
+          updated_at: new Date().toISOString(),
+          created_at: new Date().toISOString(),
+        },
+        ...old,
+      ])
       toast.success("Kartu baru ditambahkan!")
     },
-    onError: (err: Error) => {
-      toast.error(`Gagal tambah kartu: ${err.message}`)
-    },
-  })
+    [queryClient]
+  )
 
   // Realtime subscription
   useEffect(() => {
@@ -93,19 +105,9 @@ export default function KanbanPage() {
 
   const handleAddCard = useCallback(
     (stage: PipelineStage) => {
-      const validUuid = crypto.randomUUID()
-      addCardMutation.mutate({
-        school_id: validUuid,
-        school_name: "Prospek Baru",
-        contact_person: "Kontak Person",
-        total_students: 0,
-        stage,
-        offer_price: stage === "Proposal" ? DEFAULT_PROPOSAL_PRICE : null,
-        deal_price: null,
-        last_action: "Kartu baru dibuat",
-      })
+      addCardLocally(stage)
     },
-    [addCardMutation]
+    [addCardLocally]
   )
 
   const handleProposalPriceChange = useCallback(

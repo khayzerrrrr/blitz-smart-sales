@@ -31,6 +31,10 @@ interface SchoolCoord {
   total_students: number
 }
 
+interface MarkerWithSchool extends L.Marker {
+  _schoolId?: string
+}
+
 interface LeafletMapProps {
   schools: SchoolCoord[]
   selectedSchoolId: string | null
@@ -44,7 +48,7 @@ export default function LeafletMap({
 }: LeafletMapProps) {
   const mapRef = useRef<L.Map | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
-  const markersRef = useRef<L.Marker[]>([])
+  const markersRef = useRef<MarkerWithSchool[]>([])
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return
@@ -77,7 +81,9 @@ export default function LeafletMap({
 
       const marker = L.marker([lat, lng], {
         icon: school.id === selectedSchoolId ? selectedIcon : defaultIcon,
-      })
+      }) as MarkerWithSchool
+      marker._schoolId = school.id
+      marker
         .addTo(map)
         .bindPopup(
           `<div style="min-width:180px">
@@ -98,11 +104,10 @@ export default function LeafletMap({
   }, [schools, selectedSchoolId, onSelectSchool])
 
   useEffect(() => {
-    markersRef.current.forEach((m, i) => {
-      const sid = schools[i]?.id ?? null
-      m.setIcon(sid === selectedSchoolId ? selectedIcon : defaultIcon)
+    markersRef.current.forEach((m) => {
+      m.setIcon(m._schoolId === selectedSchoolId ? selectedIcon : defaultIcon)
     })
-  }, [selectedSchoolId, schools])
+  }, [selectedSchoolId])
 
   return (
     <div

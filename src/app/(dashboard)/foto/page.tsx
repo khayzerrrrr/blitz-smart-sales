@@ -102,9 +102,7 @@ export default function FotoPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
           {filtered.map((photo, i) => {
-            const url = photo.storage_path?.startsWith("http")
-              ? photo.storage_path
-              : photo.storage_path
+            const url = photo.storage_path ?? ""
             return (
               <div
                 key={photo.id ?? i}

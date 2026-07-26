@@ -3,9 +3,13 @@
 import { createClient } from "@supabase/supabase-js"
 
 function getServiceClient() {
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!key || key.startsWith("sb_secret_xxx")) {
+    throw new Error("SUPABASE_SERVICE_ROLE_KEY is not configured. Set it in Vercel Environment Variables.")
+  }
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    key,
     { auth: { autoRefreshToken: false, persistSession: false } }
   )
 }
