@@ -1,5 +1,6 @@
 import { Sidebar } from "@/components/layout/Sidebar"
 import { Topbar } from "@/components/layout/Topbar"
+import { BottomNav } from "@/components/layout/BottomNav"
 
 export default function DashboardLayout({
   children,
@@ -12,10 +13,12 @@ export default function DashboardLayout({
 
       <div className="flex flex-1 flex-col w-full overflow-hidden">
         <Topbar />
-        <div className="flex-1 p-4 md:p-6 w-full overflow-y-auto">
+        <div className="flex-1 p-4 md:p-6 pb-20 md:pb-6 w-full overflow-y-auto">
           {children}
         </div>
       </div>
+
+      <BottomNav />
     </div>
   )
 }
