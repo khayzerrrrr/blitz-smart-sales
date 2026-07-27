@@ -6,29 +6,18 @@ import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { useSidebarStore } from "@/store/useSidebarStore"
 import { useAuthStore } from "@/store/useAuthStore"
-import {
-  LayoutDashboard,
-  MapPin,
-  Camera,
-  Building2,
-  KanbanSquare,
-  Users,
-  Database,
-  ClipboardCheck,
-  ChevronLeft,
-  ChevronRight,
-} from "lucide-react"
+import { ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 const menuItems = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/stock", label: "Stock DB", icon: Database },
-  { href: "/kunjungan", label: "Kunjungan", icon: ClipboardCheck },
-  { href: "/peta", label: "Peta", icon: MapPin },
-  { href: "/foto", label: "Foto", icon: Camera },
-  { href: "/sekolah", label: "Sekolah", icon: Building2 },
-  { href: "/kanban", label: "Kanban", icon: KanbanSquare },
-  { href: "/akun", label: "Akun", icon: Users },
+  { href: "/", label: "Dashboard", icon: "/icons/dashboard.svg" },
+  { href: "/stock", label: "Stock DB", icon: "/icons/stock.svg" },
+  { href: "/kunjungan", label: "Kunjungan", icon: "/icons/kunjungan.svg" },
+  { href: "/peta", label: "Peta", icon: "/icons/peta.svg" },
+  { href: "/foto", label: "Foto", icon: "/icons/foto.svg" },
+  { href: "/sekolah", label: "Sekolah", icon: "/icons/sekolah.svg" },
+  { href: "/kanban", label: "Kanban", icon: "/icons/kanban.svg" },
+  { href: "/akun", label: "Akun", icon: "/icons/akun.svg" },
 ]
 
 export function SidebarContent() {
@@ -92,11 +81,15 @@ export function SidebarContent() {
                 isCollapsed && "justify-center px-2"
               )}
             >
-              <item.icon
-                className={cn(
-                  "size-5 shrink-0",
-                  isActive ? "text-orange-500" : "text-muted-foreground/60"
-                )}
+              <img
+                src={item.icon}
+                alt={item.label}
+                className="size-5 shrink-0"
+                style={{
+                  filter: isActive
+                    ? "invert(51%) sepia(97%) saturate(2878%) hue-rotate(346deg) brightness(99%) contrast(96%)"
+                    : "brightness(0) invert(50%)",
+                }}
               />
               <span
                 className={cn(

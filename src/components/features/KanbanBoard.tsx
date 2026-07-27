@@ -254,9 +254,9 @@ export function KanbanBoard({
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="grid gap-4 xl:gap-6 grid-cols-5">
+      <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 snap-x snap-mandatory lg:grid lg:gap-4 xl:gap-6 lg:grid-cols-5 lg:overflow-visible lg:snap-none lg:px-0 lg:mx-0">
         {columns.map((col) => (
-          <div key={col.id} className="flex flex-col min-w-0">
+          <div key={col.id} className="flex flex-col shrink-0 w-[280px] snap-start lg:w-auto lg:min-w-0">
             <div className={cn("rounded-t-xl border border-b-0 px-3 py-2.5", col.color)}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
@@ -277,7 +277,7 @@ export function KanbanBoard({
                 </Button>
               </div>
             </div>
-            <div className="flex-1 rounded-b-xl border border-border bg-card/50 p-2.5 min-h-[400px]">
+            <div className="flex-1 rounded-b-xl border border-border bg-card/50 p-2.5 min-h-[400px] lg:min-h-[500px]">
               <SortableContext
                 items={getItemsByStage(col.id).map((p) => p.id)}
                 strategy={verticalListSortingStrategy}

@@ -4,30 +4,20 @@ import { useState, useRef, useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import {
-  LayoutDashboard,
-  Database,
-  ClipboardCheck,
-  KanbanSquare,
-  Users,
-  MapPin,
-  Camera,
-  Building2,
-  Ellipsis,
-} from "lucide-react"
+import { Ellipsis } from "lucide-react"
 
 const mainItems = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/stock", label: "Stock DB", icon: Database },
-  { href: "/kunjungan", label: "Kunjungan", icon: ClipboardCheck },
-  { href: "/kanban", label: "Kanban", icon: KanbanSquare },
+  { href: "/", label: "Dashboard", icon: "/icons/dashboard.svg" },
+  { href: "/stock", label: "Stock DB", icon: "/icons/stock.svg" },
+  { href: "/kunjungan", label: "Kunjungan", icon: "/icons/kunjungan.svg" },
+  { href: "/kanban", label: "Kanban", icon: "/icons/kanban.svg" },
 ]
 
 const moreItems = [
-  { href: "/peta", label: "Peta", icon: MapPin },
-  { href: "/foto", label: "Foto", icon: Camera },
-  { href: "/sekolah", label: "Sekolah", icon: Building2 },
-  { href: "/akun", label: "Akun", icon: Users },
+  { href: "/peta", label: "Peta", icon: "/icons/peta.svg" },
+  { href: "/foto", label: "Foto", icon: "/icons/foto.svg" },
+  { href: "/sekolah", label: "Sekolah", icon: "/icons/sekolah.svg" },
+  { href: "/akun", label: "Akun", icon: "/icons/akun.svg" },
 ]
 
 export function BottomNav() {
@@ -68,11 +58,18 @@ export function BottomNav() {
                 isActive ? "text-orange-500" : "text-muted-foreground hover:text-foreground"
               )}
             >
-              <item.icon
+              <img
+                src={item.icon}
+                alt={item.label}
                 className={cn(
-                  "size-5",
+                  "size-5 shrink-0",
                   isActive && "drop-shadow-[0_0_4px_rgba(249,115,22,0.4)]"
                 )}
+                style={{
+                  filter: isActive
+                    ? "invert(51%) sepia(97%) saturate(2878%) hue-rotate(346deg) brightness(99%) contrast(96%)"
+                    : "brightness(0) invert(50%)",
+                }}
               />
               <span className="text-[10px] font-medium leading-none">{item.label}</span>
             </Link>
@@ -116,7 +113,16 @@ export function BottomNav() {
                         : "text-muted-foreground hover:bg-muted hover:text-foreground"
                     )}
                   >
-                    <item.icon className="size-4 shrink-0" />
+                    <img
+                      src={item.icon}
+                      alt={item.label}
+                      className="size-4 shrink-0"
+                      style={{
+                        filter: isActive
+                          ? "invert(51%) sepia(97%) saturate(2878%) hue-rotate(346deg) brightness(99%) contrast(96%)"
+                          : "brightness(0) invert(50%)",
+                      }}
+                    />
                     <span>{item.label}</span>
                   </Link>
                 )
