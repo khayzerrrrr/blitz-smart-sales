@@ -1,0 +1,23 @@
+{
+  "name": "Blitz Smart Sales",
+  "short_name": "Blitz CRM",
+  "description": "Aplikasi Manajemen Kunjungan & Pipeline Sekolah",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#f97316",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon-apps.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-apps.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

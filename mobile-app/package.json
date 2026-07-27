@@ -1,0 +1,30 @@
+{
+  "name": "blitz-mobile-app",
+  "version": "1.0.0",
+  "main": "src/App.tsx",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios"
+  },
+  "dependencies": {
+    "expo": "~52.0.0",
+    "@supabase/supabase-js": "^2.0.0",
+    "@react-native-async-storage/async-storage": "*",
+    "expo-file-system": "*",
+    "expo-image-picker": "*",
+    "@react-native-community/netinfo": "*",
+    "react-native-safe-area-context": "*",
+    "react-native-screens": "*",
+    "@react-navigation/native": "^7.0.0",
+    "@react-navigation/bottom-tabs": "^7.0.0",
+    "react-native-gesture-handler": "*",
+    "react-native-reanimated": "*",
+    "react-native-paper": "*",
+    "react-native-vector-icons": "*"
+  },
+  "devDependencies": {
+    "typescript": "~5.3.0",
+    "@types/react": "*"
+  }
+}
