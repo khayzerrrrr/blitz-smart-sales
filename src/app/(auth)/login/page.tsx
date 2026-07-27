@@ -1,10 +1,15 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
-import { Loader2, Smartphone, Apple, Monitor, Share2 } from "lucide-react"
+import { Loader2, Smartphone, Apple, Share2, Download, CheckCircle2 } from "lucide-react"
+
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>
+  userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>
+}
 
 function getDeviceInfo(): "android" | "ios" | "desktop" {
   if (typeof navigator === "undefined") return "desktop"
@@ -14,16 +19,55 @@ function getDeviceInfo(): "android" | "ios" | "desktop" {
   return "desktop"
 }
 
+function isStandalone(): boolean {
+  if (typeof window === "undefined") return false
+  return window.matchMedia("(display-mode: standalone)").matches
+}
+
 export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
   const [device, setDevice] = useState<"android" | "ios" | "desktop">("desktop")
   const [showPwaGuide, setShowPwaGuide] = useState(false)
+  const [installed, setInstalled] = useState(false)
+  const [installable, setInstallable] = useState(false)
+  const deferredPrompt = useRef<BeforeInstallPromptEvent | null>(null)
   const router = useRouter()
 
   useEffect(() => {
     setDevice(getDeviceInfo())
+    setInstalled(isStandalone())
+
+    const handler = (e: Event) => {
+      e.preventDefault()
+      deferredPrompt.current = e as BeforeInstallPromptEvent
+      setInstallable(true)
+    }
+
+    window.addEventListener("beforeinstallprompt", handler)
+
+    window.addEventListener("appinstalled", () => {
+      setInstalled(true)
+      setInstallable(false)
+      deferredPrompt.current = null
+    })
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handler)
+    }
+  }, [])
+
+  const handleInstallPwa = useCallback(async () => {
+    if (!deferredPrompt.current) return
+    deferredPrompt.current.prompt()
+    const { outcome } = await deferredPrompt.current.userChoice
+    if (outcome === "accepted") {
+      setInstalled(true)
+      toast.success("Aplikasi terpasang!")
+    }
+    deferredPrompt.current = null
+    setInstallable(false)
   }, [])
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -83,51 +127,73 @@ export default function LoginPage() {
       </form>
 
       {/* Download App Section */}
-      <div className="mt-8 pt-6 border-t border-border">
-        <p className="text-center text-xs text-muted-foreground mb-4">
-          Gunakan aplikasi mobile untuk pengalaman terbaik
-        </p>
-
-        {device === "android" && (
-          <a
-            href="/apk/blitz-crm-android.apk"
-            download
-            className="flex items-center justify-center gap-2 w-full rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-700 transition-colors"
-          >
-            <Smartphone className="size-4" />
-            Download for Android (APK)
-          </a>
-        )}
-
-        {device === "ios" && (
-          <>
-            <button
-              onClick={() => setShowPwaGuide(!showPwaGuide)}
-              className="flex items-center justify-center gap-2 w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
-            >
-              <Apple className="size-4" />
-              Install for iPhone (PWA)
-            </button>
-            {showPwaGuide && (
-              <div className="mt-3 rounded-lg border border-border bg-muted/50 p-4 text-sm text-muted-foreground space-y-2">
-                <p className="font-medium text-foreground">Cara Install di iPhone:</p>
-                <ol className="list-decimal ml-4 space-y-1 text-xs">
-                  <li>Buka halaman ini di <strong>Safari</strong></li>
-                  <li>Tap ikon <Share2 className="inline size-3" /> <strong>Share</strong> di bawah</li>
-                  <li>Scroll ke bawah, pilih <strong>Add to Home Screen</strong></li>
-                  <li>Tap <strong>Add</strong> di pojok kanan atas</li>
-                </ol>
-              </div>
-            )}
-          </>
-        )}
-
-        {device === "desktop" && (
-          <p className="text-center text-xs text-muted-foreground">
-            Buka halaman ini di smartphone untuk download aplikasi mobile
+      {!installed && (
+        <div className="mt-8 pt-6 border-t border-border">
+          <p className="text-center text-xs text-muted-foreground mb-4">
+            Pasang aplikasi untuk pengalaman terbaik
           </p>
-        )}
-      </div>
+
+          {device === "android" && (
+            <div className="space-y-2">
+              {installable && (
+                <button
+                  onClick={handleInstallPwa}
+                  className="flex items-center justify-center gap-2 w-full rounded-lg bg-orange-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-orange-600 transition-colors"
+                >
+                  <Download className="size-4" />
+                  Pasang Blitz CRM (PWA)
+                </button>
+              )}
+              <a
+                href="/apk/blitz-crm-android.apk"
+                download
+                className="flex items-center justify-center gap-2 w-full rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-700 transition-colors"
+              >
+                <Smartphone className="size-4" />
+                Download APK (Manual)
+              </a>
+            </div>
+          )}
+
+          {device === "ios" && (
+            <>
+              <button
+                onClick={() => setShowPwaGuide(!showPwaGuide)}
+                className="flex items-center justify-center gap-2 w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
+              >
+                <Apple className="size-4" />
+                Pasang di iPhone (PWA)
+              </button>
+              {showPwaGuide && (
+                <div className="mt-3 rounded-lg border border-border bg-muted/50 p-4 text-sm text-muted-foreground space-y-2">
+                  <p className="font-medium text-foreground">Cara Pasang di iPhone:</p>
+                  <ol className="list-decimal ml-4 space-y-1 text-xs">
+                    <li>Buka halaman ini di <strong>Safari</strong></li>
+                    <li>Tap ikon <Share2 className="inline size-3" /> <strong>Share</strong> di bawah</li>
+                    <li>Scroll ke bawah, pilih <strong>Add to Home Screen</strong></li>
+                    <li>Tap <strong>Add</strong> di pojok kanan atas</li>
+                  </ol>
+                </div>
+              )}
+            </>
+          )}
+
+          {device === "desktop" && (
+            <p className="text-center text-xs text-muted-foreground">
+              Buka halaman ini di smartphone untuk memasang aplikasi
+            </p>
+          )}
+        </div>
+      )}
+
+      {installed && (
+        <div className="mt-8 pt-6 border-t border-border">
+          <div className="flex items-center justify-center gap-2 text-emerald-500 text-sm">
+            <CheckCircle2 className="size-4" />
+            Aplikasi sudah terpasang
+          </div>
+        </div>
+      )}
     </div>
   )
 }

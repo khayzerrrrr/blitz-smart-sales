@@ -33,7 +33,13 @@ export function Topbar() {
   }
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b border-border bg-background/80 px-4 md:px-6 backdrop-blur-sm">
+    <header
+      className="sticky top-0 z-30 flex items-center justify-between gap-4 border-b border-border bg-background/80 px-4 md:px-6 backdrop-blur-sm"
+      style={{
+        paddingTop: "env(safe-area-inset-top, 0px)",
+        minHeight: "64px",
+      }}
+    >
       <div className="flex items-center gap-3">
         <Button
           variant="ghost"

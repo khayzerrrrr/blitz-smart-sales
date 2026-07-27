@@ -30,6 +30,22 @@ export async function fetchAllSchools(): Promise<SchoolRecord[]> {
   return data ?? []
 }
 
+export async function fetchMySchools(): Promise<SchoolRecord[]> {
+  const supabase = createClient()
+  const { data: userData } = await supabase.auth.getUser()
+  const userId = userData.user?.id
+  if (!userId) return fetchAllSchools()
+
+  const { data, error } = await supabase
+    .from("schools")
+    .select("*")
+    .eq("created_by", userId)
+    .order("name", { ascending: true })
+
+  if (error) throw new Error(error.message)
+  return data ?? []
+}
+
 export async function createSchool(
   input: CreateSchoolInput
 ): Promise<SchoolRecord> {
@@ -76,5 +92,11 @@ export async function updateSchool(
 export async function deleteSchool(id: string): Promise<void> {
   const supabase = createClient()
   const { error } = await supabase.from("schools").delete().eq("id", id)
+  if (error) throw new Error(error.message)
+}
+
+export async function deleteSchoolsBatch(ids: string[]): Promise<void> {
+  const supabase = createClient()
+  const { error } = await supabase.from("schools").delete().in("id", ids)
   if (error) throw new Error(error.message)
 }

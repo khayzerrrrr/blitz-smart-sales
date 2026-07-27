@@ -5,6 +5,7 @@ import { useCallback, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
 import {
   fetchPipelines,
+  createPipeline,
   updatePipelineStage,
   updatePipelinePrice,
   type PipelineRecord,
@@ -53,31 +54,43 @@ export default function KanbanPage() {
     },
   })
 
-  const addCardLocally = useCallback(
-    (stage: PipelineStage) => {
-      const tempId = `local-${crypto.randomUUID().slice(0, 8)}`
-      queryClient.setQueryData<PipelineRecord[]>(["pipelines"], (old = []) => [
-        {
-          id: tempId,
-          school_id: crypto.randomUUID(),
-          school_name: "Prospek Baru",
-          contact_person: "Kontak Person",
-          total_students: 0,
-          stage,
-          offer_price: stage === "Proposal" ? DEFAULT_PROPOSAL_PRICE : null,
-          deal_price: null,
-          last_action: "Kartu baru (lokal)",
-          updated_at: new Date().toISOString(),
-          created_at: new Date().toISOString(),
-        },
-        ...old,
-      ])
-      toast.success("Kartu baru ditambahkan!")
+  const addCardMutation = useMutation({
+    mutationFn: async (stage: PipelineStage) => {
+      const schoolName = `Prospek Baru (${new Date().toLocaleDateString("id-ID")})`
+      return createPipeline({
+        school_id: crypto.randomUUID(),
+        school_name: schoolName,
+        contact_person: "-",
+        total_students: 0,
+        stage,
+        offer_price: stage === "Proposal" ? DEFAULT_PROPOSAL_PRICE : null,
+        deal_price: null,
+        last_action: "Kartu baru",
+      })
     },
-    [queryClient]
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["pipelines"] })
+      toast.success("Kartu baru berhasil ditambahkan!")
+    },
+    onError: (err: Error) => {
+      toast.error(`Gagal tambah kartu: ${err.message}`)
+    },
+  })
+
+  const handleStageChange = useCallback(
+    (id: string, newStage: PipelineStage) => {
+      if (id.startsWith("local-")) return
+      stageMutation.mutate({ id, stage: newStage })
+    },
+    [stageMutation]
   )
 
-  // Realtime subscription
+  const handleAddCard = useCallback(
+    (stage: PipelineStage) => {
+      addCardMutation.mutate(stage)
+    },
+    [addCardMutation]
+  )
   useEffect(() => {
     const supabase = createClient()
     const channel = supabase
@@ -95,20 +108,6 @@ export default function KanbanPage() {
       supabase.removeChannel(channel)
     }
   }, [queryClient])
-
-  const handleStageChange = useCallback(
-    (id: string, newStage: PipelineStage) => {
-      stageMutation.mutate({ id, stage: newStage })
-    },
-    [stageMutation]
-  )
-
-  const handleAddCard = useCallback(
-    (stage: PipelineStage) => {
-      addCardLocally(stage)
-    },
-    [addCardLocally]
-  )
 
   const handleProposalPriceChange = useCallback(
     (id: string, price: number) => {

@@ -1,36 +1,43 @@
 import { useMemo, useState } from "react"
-import type { School } from "@/types"
-import { mockSchools } from "@/data/mockData"
+import { useQuery } from "@tanstack/react-query"
+import { fetchAllSchools, fetchMySchools, type SchoolRecord } from "@/services/school.service"
 
-export function useSchools() {
+export function useSchools(mySchoolsOnly = false) {
   const [search, setSearch] = useState("")
   const [regionalFilter, setRegionalFilter] = useState("")
 
+  const { data: allSchools = [], isLoading, error } = useQuery({
+    queryKey: ["schools", mySchoolsOnly ? "mine" : "all"],
+    queryFn: mySchoolsOnly ? fetchMySchools : fetchAllSchools,
+  })
+
   const filtered = useMemo(() => {
-    let result: School[] = mockSchools
+    let result: SchoolRecord[] = allSchools
     if (search) {
       const q = search.toLowerCase()
       result = result.filter(
         (s) =>
           s.name.toLowerCase().includes(q) ||
           s.regional.toLowerCase().includes(q) ||
-          s.contactPerson.toLowerCase().includes(q)
+          s.contact_person.toLowerCase().includes(q)
       )
     }
     if (regionalFilter) {
       result = result.filter((s) => s.regional === regionalFilter)
     }
     return result
-  }, [search, regionalFilter])
+  }, [allSchools, search, regionalFilter])
 
   const regionals = useMemo(
-    () => [...new Set(mockSchools.map((s) => s.regional))],
-    []
+    () => [...new Set(allSchools.map((s) => s.regional).filter(Boolean))],
+    [allSchools]
   )
 
   return {
     schools: filtered,
-    allSchools: mockSchools,
+    allSchools,
+    isLoading,
+    error,
     search,
     setSearch,
     regionalFilter,

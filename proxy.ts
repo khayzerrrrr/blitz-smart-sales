@@ -29,7 +29,8 @@ export default async function proxy(request: NextRequest) {
 
   const { pathname } = request.nextUrl
   const isAuthRoute = pathname.startsWith("/login") || pathname.startsWith("/setup")
-  const isPublicFile = pathname.match(/\.(?:png|svg|jpg|ico|json|txt|css|js)$/)
+  const isPublicFile = pathname.match(/\.(?:png|svg|jpg|ico|json|txt|css|js|apk)$/)
+  const isAkunRoute = pathname.startsWith("/akun")
 
   if (isPublicFile) return NextResponse.next()
 
@@ -41,5 +42,18 @@ export default async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/", request.url))
   }
 
+  if (isAkunRoute && session) {
+    const role = session.user.user_metadata?.role
+    if (role !== "admin") {
+      return NextResponse.redirect(new URL("/", request.url))
+    }
+  }
+
   return response
+}
+
+export const config = {
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico).*)",
+  ],
 }

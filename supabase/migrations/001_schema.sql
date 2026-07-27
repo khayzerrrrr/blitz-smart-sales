@@ -1,6 +1,5 @@
 -- ============================================
--- Blitz CRM - Database Schema
--- Run this in Supabase SQL Editor
+-- Blitz CRM - Database Schema v2
 -- ============================================
 
 -- Enable UUID extension
@@ -11,6 +10,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- ============================================
 CREATE TABLE IF NOT EXISTS schools (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
   name TEXT NOT NULL,
   address TEXT DEFAULT '',
   regional TEXT DEFAULT '',
@@ -23,14 +23,24 @@ CREATE TABLE IF NOT EXISTS schools (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::TEXT, NOW()) NOT NULL
 );
 
+-- Add created_by to existing tables if missing
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'schools' AND column_name = 'created_by'
+  ) THEN
+    ALTER TABLE schools ADD COLUMN created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL;
+  END IF;
+END $$;
+
 -- ============================================
 -- Table: visits (Kunjungan Harian)
 -- ============================================
 CREATE TABLE IF NOT EXISTS visits (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   school_id UUID REFERENCES schools(id) ON DELETE CASCADE NOT NULL,
-  user_id UUID DEFAULT '00000000-0000-0000-0000-000000000000',
-  user_name TEXT DEFAULT 'Dummy User',
+  user_id UUID DEFAULT auth.uid(),
+  user_name TEXT DEFAULT '',
   school_name TEXT NOT NULL,
   visit_date DATE DEFAULT CURRENT_DATE,
   status TEXT CHECK (status IN ('Selesai', 'Proses', 'Dijadwalkan')) DEFAULT 'Dijadwalkan',
@@ -60,6 +70,15 @@ CREATE TABLE IF NOT EXISTS pipelines (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::TEXT, NOW()) NOT NULL
 );
 
+-- Add UNIQUE constraint on school_id if missing
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'pipelines_school_id_unique'
+  ) THEN
+    ALTER TABLE pipelines ADD CONSTRAINT pipelines_school_id_unique UNIQUE (school_id);
+  END IF;
+END $$;
+
 -- ============================================
 -- Table: school_photos (Galeri Foto)
 -- ============================================
@@ -81,13 +100,33 @@ ALTER TABLE pipelines ENABLE ROW LEVEL SECURITY;
 ALTER TABLE school_photos ENABLE ROW LEVEL SECURITY;
 
 -- ============================================
--- RLS Policies (allow public access for now)
--- IMPORTANT: Change these to auth.uid() later!
+-- RLS Policies
 -- ============================================
-CREATE POLICY "Enable all for authenticated" ON schools FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Enable all for authenticated" ON visits FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Enable all for authenticated" ON pipelines FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Enable all for authenticated" ON school_photos FOR ALL USING (true) WITH CHECK (true);
+
+-- Schools: authenticated users can read all, only creator can insert/update/delete
+DROP POLICY IF EXISTS "Enable all for authenticated" ON schools;
+DROP POLICY IF EXISTS "Enable all for authenticated" ON visits;
+DROP POLICY IF EXISTS "Enable all for authenticated" ON pipelines;
+DROP POLICY IF EXISTS "Enable all for authenticated" ON school_photos;
+
+CREATE POLICY "Schools are readable by authenticated users" ON schools FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "Schools are insertable by authenticated users" ON schools FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Schools are updatable by authenticated users" ON schools FOR UPDATE USING (auth.role() = 'authenticated');
+CREATE POLICY "Schools are deletable by authenticated users" ON schools FOR DELETE USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Visits are readable by authenticated users" ON visits FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "Visits are insertable by authenticated users" ON visits FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Visits are updatable by authenticated users" ON visits FOR UPDATE USING (auth.role() = 'authenticated');
+CREATE POLICY "Visits are deletable by authenticated users" ON visits FOR DELETE USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Pipelines are readable by authenticated users" ON pipelines FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "Pipelines are insertable by authenticated users" ON pipelines FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Pipelines are updatable by authenticated users" ON pipelines FOR UPDATE USING (auth.role() = 'authenticated');
+CREATE POLICY "Pipelines are deletable by authenticated users" ON pipelines FOR DELETE USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Photos are readable by authenticated users" ON school_photos FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "Photos are insertable by authenticated users" ON school_photos FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Photos are deletable by authenticated users" ON school_photos FOR DELETE USING (auth.role() = 'authenticated');
 
 -- ============================================
 -- Enable Realtime for pipelines + photos

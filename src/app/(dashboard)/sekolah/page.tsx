@@ -1,5 +1,7 @@
 "use client"
 
+import { useState } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -26,23 +28,44 @@ import {
   FormControl,
   FormMessage,
 } from "@/components/ui/form"
-import { Plus, Search, Pencil, Trash2 } from "lucide-react"
+import { Plus, Search, Pencil, Trash2, Loader2 } from "lucide-react"
 import { useSchools } from "@/hooks/useSchools"
 import { format } from "date-fns"
-
 import { toast } from "sonner"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { schoolFormSchema, type SchoolFormValues } from "@/lib/validations/school-schema"
+import {
+  createSchool,
+  updateSchool,
+  deleteSchool,
+  type SchoolRecord,
+} from "@/services/school.service"
 
 export default function SekolahPage() {
-  const { schools, search, setSearch } = useSchools()
-  const handleDelete = (id: string, name: string) => {
-    toast.success(`Simulasi: Sekolah "${name}" berhasil dihapus!`)
+  const queryClient = useQueryClient()
+  const { schools, isLoading, search, setSearch } = useSchools(true)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [editingSchool, setEditingSchool] = useState<SchoolRecord | null>(null)
+  const [addDialogOpen, setAddDialogOpen] = useState(false)
+  const [deleting, setDeleting] = useState<string | null>(null)
+
+  const handleDelete = async (id: string, name: string) => {
+    setDeleting(id)
+    try {
+      await deleteSchool(id)
+      queryClient.invalidateQueries({ queryKey: ["schools"] })
+      toast.success(`Sekolah "${name}" berhasil dihapus!`)
+    } catch (err) {
+      toast.error(`Gagal hapus: ${err instanceof Error ? err.message : "Unknown"}`)
+    } finally {
+      setDeleting(null)
+    }
   }
 
-  const handleEdit = (name: string) => {
-    toast.info(`Simulasi: Fitur edit "${name}" akan tersedia di Fase 3.`)
+  const handleEdit = (school: SchoolRecord) => {
+    setEditingSchool(school)
+    setEditDialogOpen(true)
   }
 
   return (
@@ -56,7 +79,7 @@ export default function SekolahPage() {
             Manajemen data master sekolah.
           </p>
         </div>
-        <Dialog>
+        <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
           <DialogTrigger>
             <Button className="bg-orange-500 hover:bg-orange-600 gap-2">
               <Plus className="size-4" />
@@ -69,7 +92,22 @@ export default function SekolahPage() {
                 Tambah Sekolah Baru
               </DialogTitle>
             </DialogHeader>
-            <SchoolForm onSubmit={() => {}} />
+            <SchoolForm
+              onSubmit={async (values) => {
+                await createSchool({
+                  name: values.name,
+                  address: values.address,
+                  regional: values.regional,
+                  contact_person: values.contactPerson,
+                  total_students: 0,
+                  total_teachers: 0,
+                  latitude: values.latitude ?? 0,
+                  longitude: values.longitude ?? 0,
+                })
+                queryClient.invalidateQueries({ queryKey: ["schools"] })
+                setAddDialogOpen(false)
+              }}
+            />
           </DialogContent>
         </Dialog>
       </div>
@@ -87,85 +125,139 @@ export default function SekolahPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow className="border-border hover:bg-transparent">
-                <TableHead className="text-muted-foreground">Nama Sekolah</TableHead>
-                <TableHead className="text-muted-foreground">Regional</TableHead>
-                <TableHead className="text-muted-foreground">Kontak</TableHead>
-                <TableHead className="text-muted-foreground">
-                  Terakhir Dikunjungi
-                </TableHead>
-                <TableHead className="text-right text-muted-foreground">
-                  Aksi
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {schools.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={5}
-                    className="text-center text-muted-foreground py-8"
-                  >
-                    Tidak ada data sekolah yang ditemukan.
-                  </TableCell>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="size-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow className="border-border hover:bg-transparent">
+                  <TableHead className="text-muted-foreground">Nama Sekolah</TableHead>
+                  <TableHead className="text-muted-foreground">Regional</TableHead>
+                  <TableHead className="text-muted-foreground">Kontak</TableHead>
+                  <TableHead className="text-muted-foreground">
+                    Terakhir Diupdate
+                  </TableHead>
+                  <TableHead className="text-right text-muted-foreground">
+                    Aksi
+                  </TableHead>
                 </TableRow>
-              ) : (
-                schools.map((school) => (
-                  <TableRow
-                    key={school.id}
-                    className="border-border hover:bg-muted/50"
-                  >
-                    <TableCell className="font-medium text-foreground">
-                      {school.name}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {school.regional}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {school.contactPerson}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                        {school.lastVisited
-                          ? format(new Date(school.lastVisited), "dd MMM yyyy")
-                          : "-"}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="size-8 text-muted-foreground hover:text-orange-400"
-                          onClick={() => handleEdit(school.name)}
-                        >
-                          <Pencil className="size-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="size-8 text-muted-foreground hover:text-red-400"
-                          onClick={() => handleDelete(school.id, school.name)}
-                        >
-                          <Trash2 className="size-4" />
-                        </Button>
-                      </div>
+              </TableHeader>
+              <TableBody>
+                {schools.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={5}
+                      className="text-center text-muted-foreground py-8"
+                    >
+                      Tidak ada data sekolah yang ditemukan.
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ) : (
+                  schools.map((school) => (
+                    <TableRow
+                      key={school.id}
+                      className="border-border hover:bg-muted/50"
+                    >
+                      <TableCell className="font-medium text-foreground">
+                        {school.name}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {school.regional}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {school.contact_person}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {format(new Date(school.updated_at), "dd MMM yyyy")}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-8 text-muted-foreground hover:text-orange-400"
+                            onClick={() => handleEdit(school)}
+                          >
+                            <Pencil className="size-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-8 text-muted-foreground hover:text-red-400"
+                            onClick={() => handleDelete(school.id, school.name)}
+                            disabled={deleting === school.id}
+                          >
+                            {deleting === school.id ? (
+                              <Loader2 className="size-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="size-4" />
+                            )}
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
+
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="border-border bg-card sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">
+              Edit Sekolah
+            </DialogTitle>
+          </DialogHeader>
+          {editingSchool && (
+            <SchoolForm
+              defaultValues={{
+                name: editingSchool.name,
+                address: editingSchool.address,
+                regional: editingSchool.regional,
+                contactPerson: editingSchool.contact_person,
+                latitude: editingSchool.latitude,
+                longitude: editingSchool.longitude,
+              }}
+              onSubmit={async (values) => {
+                await updateSchool(editingSchool.id, {
+                  name: values.name,
+                  address: values.address,
+                  regional: values.regional,
+                  contact_person: values.contactPerson,
+                  latitude: values.latitude ?? editingSchool.latitude,
+                  longitude: values.longitude ?? editingSchool.longitude,
+                })
+                queryClient.invalidateQueries({ queryKey: ["schools"] })
+                setEditDialogOpen(false)
+                setEditingSchool(null)
+              }}
+              submitLabel="Simpan Perubahan"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
 
-function SchoolForm({ onSubmit }: { onSubmit: () => void }) {
+function SchoolForm({
+  defaultValues,
+  onSubmit,
+  submitLabel = "Simpan Sekolah",
+}: {
+  defaultValues?: SchoolFormValues
+  onSubmit: (values: SchoolFormValues) => Promise<void>
+  submitLabel?: string
+}) {
+  const [submitting, setSubmitting] = useState(false)
   const form = useForm<SchoolFormValues>({
     resolver: zodResolver(schoolFormSchema),
-    defaultValues: {
+    defaultValues: defaultValues ?? {
       name: "",
       address: "",
       regional: "",
@@ -173,10 +265,17 @@ function SchoolForm({ onSubmit }: { onSubmit: () => void }) {
     },
   })
 
-  const handleSubmit = (values: SchoolFormValues) => {
-    toast.success(`Simulasi: Sekolah "${values.name}" berhasil disimpan!`)
-    onSubmit()
-    form.reset()
+  const handleSubmit = async (values: SchoolFormValues) => {
+    setSubmitting(true)
+    try {
+      await onSubmit(values)
+      toast.success(`Sekolah "${values.name}" berhasil disimpan!`)
+      form.reset()
+    } catch (err) {
+      toast.error(`Gagal: ${err instanceof Error ? err.message : "Terjadi kesalahan"}`)
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -253,8 +352,13 @@ function SchoolForm({ onSubmit }: { onSubmit: () => void }) {
         <Button
           type="submit"
           className="w-full bg-orange-500 hover:bg-orange-600"
+          disabled={submitting}
         >
-          Simpan Sekolah
+          {submitting ? (
+            <><Loader2 className="size-4 animate-spin mr-2" />Menyimpan...</>
+          ) : (
+            submitLabel
+          )}
         </Button>
       </form>
     </Form>

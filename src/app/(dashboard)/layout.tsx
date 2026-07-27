@@ -13,9 +13,15 @@ export default function DashboardLayout({
 
       <div className="flex flex-1 flex-col w-full overflow-hidden">
         <Topbar />
-        <div className="flex-1 p-4 md:p-6 pb-20 md:pb-6 w-full overflow-y-auto">
+        <div
+          className="flex-1 p-4 md:p-6 w-full overflow-y-auto"
+          style={{
+            paddingBottom: "calc(80px + env(safe-area-inset-bottom, 0px))",
+          }}
+        >
           {children}
         </div>
+        <div className="h-0 md:hidden" style={{ paddingTop: "env(safe-area-inset-bottom, 0px)" }} />
       </div>
 
       <BottomNav />

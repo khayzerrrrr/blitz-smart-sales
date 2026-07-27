@@ -42,7 +42,10 @@ export function BottomNav() {
   )
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden border-t border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80">
+    <nav
+      className="fixed bottom-0 left-0 right-0 z-50 md:hidden border-t border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80"
+      style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+    >
       <div className="flex items-center justify-around h-16 px-1" ref={containerRef}>
         {mainItems.map((item) => {
           const isActive = pathname

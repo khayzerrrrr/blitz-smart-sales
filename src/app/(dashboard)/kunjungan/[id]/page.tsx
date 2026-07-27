@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ArrowLeft } from "lucide-react"
 import { format } from "date-fns"
-import { fetchVisits } from "@/services/visit.service"
+import { fetchVisitById } from "@/services/visit.service"
 
 export default function KunjunganDetailPage({
   params,
@@ -17,12 +17,10 @@ export default function KunjunganDetailPage({
 }) {
   const { id } = use(params)
 
-  const { data: visits = [], isLoading } = useQuery({
-    queryKey: ["visits"],
-    queryFn: () => fetchVisits(),
+  const { data: visit, isLoading } = useQuery({
+    queryKey: ["visits", id],
+    queryFn: () => fetchVisitById(id),
   })
-
-  const visit = visits.find((v) => v.id === id)
 
   if (isLoading) {
     return (

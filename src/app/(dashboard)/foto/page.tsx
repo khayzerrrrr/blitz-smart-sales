@@ -23,6 +23,7 @@ import { Search, X, Upload, ImageIcon } from "lucide-react"
 import { format } from "date-fns"
 import { createClient } from "@/lib/supabase/client"
 import { fetchAllSchools } from "@/services/school.service"
+import { fetchPhotos, createPhoto, type PhotoRecord } from "@/services/photo.service"
 import { toast } from "sonner"
 import { useAuthStore } from "@/store/useAuthStore"
 
@@ -34,15 +35,7 @@ export default function FotoPage() {
 
   const { data: photos = [], isLoading } = useQuery({
     queryKey: ["photos"],
-    queryFn: async () => {
-      const supabase = createClient()
-      const { data, error } = await supabase
-        .from("school_photos")
-        .select("*")
-        .order("created_at", { ascending: false })
-      if (error) throw new Error(error.message)
-      return data ?? []
-    },
+    queryFn: fetchPhotos,
   })
 
   const filtered = photos.filter(

@@ -28,7 +28,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { Plus, Search } from "lucide-react"
+import { Plus, Search, MapPin, Camera } from "lucide-react"
 import { format } from "date-fns"
 import { VisitForm } from "@/components/features/VisitForm"
 import { fetchVisits, type VisitRecord } from "@/services/visit.service"
@@ -141,12 +141,14 @@ export default function KunjunganPage() {
                   <TableHead className="text-muted-foreground">Sales</TableHead>
                   <TableHead className="text-muted-foreground">Status</TableHead>
                   <TableHead className="text-muted-foreground">Catatan</TableHead>
+                  <TableHead className="text-muted-foreground w-16">GPS</TableHead>
+                  <TableHead className="text-muted-foreground w-16">Foto</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                       {visitsRaw.length === 0
                         ? "Belum ada data kunjungan. Buat kunjungan pertama!"
                         : "Tidak ditemukan."}
@@ -154,7 +156,14 @@ export default function KunjunganPage() {
                   </TableRow>
                 ) : (
                   filtered.map((visit) => (
-                    <TableRow key={visit.id} className="border-border hover:bg-muted/50">
+                    <TableRow
+                      key={visit.id}
+                      className="border-border hover:bg-muted/50 cursor-pointer"
+                      onClick={() => {
+                        const win = window.open(`/kunjungan/${visit.id}`, "_self")
+                        if (win) win.opener = null
+                      }}
+                    >
                       <TableCell className="text-foreground">
                         {format(new Date(visit.visit_date), "dd MMM yyyy")}
                       </TableCell>
@@ -178,6 +187,16 @@ export default function KunjunganPage() {
                       </TableCell>
                       <TableCell className="max-w-xs truncate text-muted-foreground">
                         {visit.notes}
+                      </TableCell>
+                      <TableCell>
+                        {(visit as any).latitude != null ? (
+                          <MapPin className="size-4 text-green-400" />
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Camera className="size-4 text-muted-foreground" />
                       </TableCell>
                     </TableRow>
                   ))

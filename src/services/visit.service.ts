@@ -50,6 +50,18 @@ export async function fetchVisits(
   return data ?? []
 }
 
+export async function fetchVisitById(id: string): Promise<VisitRecord | null> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from("visits")
+    .select("*")
+    .eq("id", id)
+    .single()
+
+  if (error) throw new Error(error.message)
+  return data
+}
+
 export async function createVisit(
   input: CreateVisitInput
 ): Promise<VisitRecord> {
@@ -62,4 +74,26 @@ export async function createVisit(
 
   if (error) throw new Error(error.message)
   return data as VisitRecord
+}
+
+export async function updateVisit(
+  id: string,
+  input: Partial<CreateVisitInput>
+): Promise<VisitRecord> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from("visits")
+    .update(input)
+    .eq("id", id)
+    .select()
+    .single()
+
+  if (error) throw new Error(error.message)
+  return data as VisitRecord
+}
+
+export async function deleteVisit(id: string): Promise<void> {
+  const supabase = createClient()
+  const { error } = await supabase.from("visits").delete().eq("id", id)
+  if (error) throw new Error(error.message)
 }

@@ -1,7 +1,15 @@
 "use client"
 
+import { useState, useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import {
   Database,
   TrendingUp,
@@ -23,6 +31,7 @@ const DAY_NAMES = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"]
 
 export default function DashboardPage() {
   const today = new Date().toISOString().split("T")[0]
+  const [regionalFilter, setRegionalFilter] = useState("all")
 
   const { data: schools = [] } = useQuery({
     queryKey: ["schools"],
@@ -39,18 +48,44 @@ export default function DashboardPage() {
     queryFn: () => fetchVisits(),
   })
 
-  const kunjunganHariIni = visits.filter((v) => v.visit_date === today).length
-  const totalSekolah = schools.length
-  const prospekAktif = pipelines.filter((p) => p.stage === "Prospect").length
+  const regionals = useMemo(
+    () => [...new Set(schools.map((s) => s.regional).filter(Boolean))],
+    [schools]
+  )
 
-  const totalPotentialRevenue = pipelines
+  const filteredVisits = useMemo(() => {
+    if (regionalFilter === "all") return visits
+    return visits.filter((v) => {
+      const school = schools.find((s) => s.id === v.school_id)
+      return school?.regional === regionalFilter
+    })
+  }, [visits, schools, regionalFilter])
+
+  const filteredPipelines = useMemo(() => {
+    if (regionalFilter === "all") return pipelines
+    return pipelines.filter((p) => {
+      const school = schools.find((s) => s.id === p.school_id)
+      return school?.regional === regionalFilter
+    })
+  }, [pipelines, schools, regionalFilter])
+
+  const filteredSchools = useMemo(() => {
+    if (regionalFilter === "all") return schools
+    return schools.filter((s) => s.regional === regionalFilter)
+  }, [schools, regionalFilter])
+
+  const kunjunganHariIni = filteredVisits.filter((v) => v.visit_date === today).length
+  const totalSekolah = filteredSchools.length
+  const prospekAktif = filteredPipelines.filter((p) => p.stage === "Prospect").length
+
+  const totalPotentialRevenue = filteredPipelines
     .filter((p) => p.stage === "Proposal")
     .reduce((sum, p) => {
       const price = p.offer_price ?? DEFAULT_PROPOSAL_PRICE
       return sum + price * (p.total_students ?? 0)
     }, 0)
 
-  const totalRealizedRevenue = pipelines
+  const totalRealizedRevenue = filteredPipelines
     .filter((p) => p.stage === "MoU")
     .reduce((sum, p) => {
       const price = p.deal_price ?? 0
@@ -69,7 +104,7 @@ export default function DashboardPage() {
       const d = new Date(monday)
       d.setDate(monday.getDate() + i)
       const dateStr = d.toISOString().split("T")[0]
-      const count = visits.filter((v) => v.visit_date === dateStr).length
+      const count = filteredVisits.filter((v) => v.visit_date === dateStr).length
       result.push({ label: DAY_NAMES[d.getDay()], visits: count })
     }
     return result
@@ -129,13 +164,26 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          Dashboard
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Ringkasan performa penjualan, revenue, dan kunjungan.
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            Dashboard
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Ringkasan performa penjualan, revenue, dan kunjungan.
+          </p>
+        </div>
+        <Select value={regionalFilter} onValueChange={(v) => setRegionalFilter(v ?? "all")}>
+          <SelectTrigger className="border-border bg-muted text-foreground w-full sm:w-48">
+            <SelectValue placeholder="Filter Regional" />
+          </SelectTrigger>
+          <SelectContent className="border-border bg-popover text-foreground">
+            <SelectItem value="all">Semua Regional</SelectItem>
+            {regionals.map((r) => (
+              <SelectItem key={r} value={r}>{r}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">

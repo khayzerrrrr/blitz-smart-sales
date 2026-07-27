@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useState } from "react"
+import { useCallback, useState, useMemo } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -21,12 +21,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Upload, Search, Trash2, Database, FileSpreadsheet, Filter } from "lucide-react"
+import { Upload, Search, Trash2, Database, FileSpreadsheet, Filter, CheckSquare, Square, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import {
   fetchAllSchools,
   createSchoolsBatch,
   deleteSchool,
+  deleteSchoolsBatch,
   type CreateSchoolInput,
 } from "@/services/school.service"
 import * as XLSX from "xlsx"
@@ -88,6 +89,7 @@ export default function StockPage() {
   const queryClient = useQueryClient()
   const [search, setSearch] = useState("")
   const [regionFilter, setRegionFilter] = useState("all")
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
 
   const { data: schools = [], isLoading } = useQuery({
     queryKey: ["schools"],
@@ -119,9 +121,20 @@ export default function StockPage() {
     mutationFn: ({ id }: { id: string; name: string }) => deleteSchool(id),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["schools"] })
+      setSelectedIds((prev) => { const next = new Set(prev); next.delete(variables.id); return next })
       toast.success(`"${variables.name}" dihapus.`)
     },
     onError: (err: Error) => toast.error(`Gagal hapus: ${err.message}`),
+  })
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: (ids: string[]) => deleteSchoolsBatch(ids),
+    onSuccess: (_data, ids) => {
+      queryClient.invalidateQueries({ queryKey: ["schools"] })
+      setSelectedIds(new Set())
+      toast.success(`${ids.length} sekolah berhasil dihapus.`)
+    },
+    onError: (err: Error) => toast.error(`Gagal hapus massal: ${err.message}`),
   })
 
   const batchMutation = useMutation({
@@ -166,17 +179,49 @@ export default function StockPage() {
     maxFiles: 1,
   })
 
-  const filtered = schools.filter(
-    (s) => {
-      const matchSearch =
-        s.name.toLowerCase().includes(search.toLowerCase()) ||
-        (s.regional ?? "").toLowerCase().includes(search.toLowerCase())
-      const matchRegion =
-        regionFilter === "all" ||
-        getRegionGroup(s.regional ?? "") === regionFilter
-      return matchSearch && matchRegion
-    }
-  )
+  const filtered = useMemo(() =>
+    schools.filter(
+      (s) => {
+        const matchSearch =
+          s.name.toLowerCase().includes(search.toLowerCase()) ||
+          (s.regional ?? "").toLowerCase().includes(search.toLowerCase())
+        const matchRegion =
+          regionFilter === "all" ||
+          getRegionGroup(s.regional ?? "") === regionFilter
+        return matchSearch && matchRegion
+      }
+    ), [schools, search, regionFilter])
+
+  const filteredIds = useMemo(() => new Set(filtered.map((s) => s.id)), [filtered])
+
+  const allFilteredSelected = filtered.length > 0 && filtered.every((s) => selectedIds.has(s.id))
+  const someFilteredSelected = filtered.some((s) => selectedIds.has(s.id))
+
+  const toggleSelectAll = () => {
+    setSelectedIds((prev) => {
+      if (allFilteredSelected) {
+        const next = new Set(prev)
+        filteredIds.forEach((id) => next.delete(id))
+        return next
+      }
+      const next = new Set(prev)
+      filteredIds.forEach((id) => next.add(id))
+      return next
+    })
+  }
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+
+  const handleBulkDelete = () => {
+    if (selectedIds.size === 0) return
+    bulkDeleteMutation.mutate(Array.from(selectedIds))
+  }
 
   const handleDelete = (id: string, name: string) => {
     deleteMutation.mutate({ id, name })
@@ -270,51 +315,100 @@ export default function StockPage() {
           {isLoading ? (
             <p className="py-8 text-center text-muted-foreground">Memuat data...</p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow className="border-border hover:bg-transparent">
-                  <TableHead className="text-muted-foreground">Nama Sekolah</TableHead>
-                  <TableHead className="text-muted-foreground">Regional</TableHead>
-                  <TableHead className="text-muted-foreground text-right">Siswa</TableHead>
-                  <TableHead className="text-muted-foreground text-right">Guru</TableHead>
-                  <TableHead className="text-muted-foreground text-center">Aksi</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                      {schools.length === 0
-                        ? "Belum ada data. Jalankan SQL migration untuk seed data."
-                        : "Tidak ditemukan."}
-                    </TableCell>
+            <>
+              {selectedIds.size > 0 && (
+                <div className="flex items-center justify-between gap-3 mb-4 p-3 rounded-lg bg-orange-500/10 border border-orange-500/20">
+                  <span className="text-sm text-orange-400">
+                    {selectedIds.size} sekolah terpilih
+                  </span>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={handleBulkDelete}
+                    disabled={bulkDeleteMutation.isPending}
+                    className="gap-2"
+                  >
+                    {bulkDeleteMutation.isPending ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="size-4" />
+                    )}
+                    Hapus Semua Terpilih
+                  </Button>
+                </div>
+              )}
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-border hover:bg-transparent">
+                    <TableHead className="w-10">
+                      <button
+                        onClick={toggleSelectAll}
+                        className="flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        {allFilteredSelected ? (
+                          <CheckSquare className="size-4 text-orange-400" />
+                        ) : someFilteredSelected ? (
+                          <CheckSquare className="size-4 text-orange-400/50" />
+                        ) : (
+                          <Square className="size-4" />
+                        )}
+                      </button>
+                    </TableHead>
+                    <TableHead className="text-muted-foreground">Nama Sekolah</TableHead>
+                    <TableHead className="text-muted-foreground">Regional</TableHead>
+                    <TableHead className="text-muted-foreground text-right">Siswa</TableHead>
+                    <TableHead className="text-muted-foreground text-right">Guru</TableHead>
+                    <TableHead className="text-muted-foreground text-center">Aksi</TableHead>
                   </TableRow>
-                ) : (
-                  filtered.map((school) => (
-                    <TableRow key={school.id} className="border-border hover:bg-muted/50">
-                      <TableCell className="font-medium text-foreground">{school.name}</TableCell>
-                      <TableCell className="text-muted-foreground">{school.regional}</TableCell>
-                      <TableCell className="text-right text-foreground">
-                        {school.total_students}
-                      </TableCell>
-                      <TableCell className="text-right text-foreground">
-                        {school.total_teachers}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="size-8 text-muted-foreground hover:text-red-400"
-                          onClick={() => handleDelete(school.id, school.name)}
-                        >
-                          <Trash2 className="size-4" />
-                        </Button>
+                </TableHeader>
+                <TableBody>
+                  {filtered.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                        {schools.length === 0
+                          ? "Belum ada data. Jalankan SQL migration untuk seed data."
+                          : "Tidak ditemukan."}
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                  ) : (
+                    filtered.map((school) => (
+                      <TableRow key={school.id} className="border-border hover:bg-muted/50">
+                        <TableCell>
+                          <button
+                            onClick={() => toggleSelect(school.id)}
+                            className="flex items-center justify-center text-muted-foreground hover:text-orange-400 transition-colors"
+                          >
+                            {selectedIds.has(school.id) ? (
+                              <CheckSquare className="size-4 text-orange-400" />
+                            ) : (
+                              <Square className="size-4" />
+                            )}
+                          </button>
+                        </TableCell>
+                        <TableCell className="font-medium text-foreground">{school.name}</TableCell>
+                        <TableCell className="text-muted-foreground">{school.regional}</TableCell>
+                        <TableCell className="text-right text-foreground">
+                          {school.total_students}
+                        </TableCell>
+                        <TableCell className="text-right text-foreground">
+                          {school.total_teachers}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-8 text-muted-foreground hover:text-red-400"
+                            onClick={() => handleDelete(school.id, school.name)}
+                          >
+                            <Trash2 className="size-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </>
           )}
         </CardContent>
       </Card>

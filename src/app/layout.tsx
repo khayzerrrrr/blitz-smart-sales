@@ -45,12 +45,13 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="theme-color" content="#020617" media="(prefers-color-scheme: dark)" />
-        <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
-        <link rel="apple-touch-icon" href="/icon-apps.png" />
+        <meta name="theme-color" content="#f97316" media="(prefers-color-scheme: light)" />
+        <link rel="apple-touch-icon" href="/icon-apps.png" sizes="180x180" />
       </head>
       <body className="flex min-h-full flex-col bg-background text-foreground">
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
