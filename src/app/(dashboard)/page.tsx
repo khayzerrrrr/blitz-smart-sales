@@ -17,10 +17,12 @@ import {
   CalendarCheck,
   Building2,
   Target,
+  Users,
 } from "lucide-react"
 import { fetchAllSchools } from "@/services/school.service"
 import { fetchPipelines } from "@/services/pipeline.service"
 import { fetchVisits } from "@/services/visit.service"
+import { useAuthStore } from "@/store/useAuthStore"
 import { DEFAULT_PROPOSAL_PRICE } from "@/lib/constants"
 
 function formatRupiah(value: number): string {
@@ -32,6 +34,8 @@ const DAY_NAMES = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"]
 export default function DashboardPage() {
   const today = new Date().toISOString().split("T")[0]
   const [regionalFilter, setRegionalFilter] = useState("all")
+  const user = useAuthStore((s) => s.user)
+  const userRole = user?.user_metadata?.role ?? "sales"
 
   const { data: schools = [] } = useQuery({
     queryKey: ["schools"],
@@ -110,6 +114,49 @@ export default function DashboardPage() {
     return result
   })()
   const maxVisits = Math.max(...weeklyVisits.map((d) => d.visits), 1)
+
+  const salesPerformance = useMemo(() => {
+    if (userRole !== "admin") return []
+    const grouped: Record<string, {
+      name: string
+      totalVisits: number
+      weeklyVisits: number
+      totalPipelines: number
+      mouRevenue: number
+    }> = {}
+
+    for (const v of visits) {
+      const key = v.user_id
+      if (!grouped[key]) {
+        grouped[key] = { name: v.user_name, totalVisits: 0, weeklyVisits: 0, totalPipelines: 0, mouRevenue: 0 }
+      }
+      grouped[key].totalVisits++
+      const today = new Date()
+      const dayOfWeek = today.getDay()
+      const monday = new Date(today)
+      monday.setDate(today.getDate() - ((dayOfWeek + 6) % 7))
+      if (new Date(v.visit_date) >= monday) {
+        grouped[key].weeklyVisits++
+      }
+    }
+
+    for (const p of pipelines) {
+      if (!p.created_by) continue
+      const key = p.created_by
+      if (!grouped[key]) {
+        grouped[key] = { name: "Unknown", totalVisits: 0, weeklyVisits: 0, totalPipelines: 0, mouRevenue: 0 }
+      }
+      grouped[key].totalPipelines++
+      if (p.stage === "MoU") {
+        const price = p.deal_price ?? 0
+        grouped[key].mouRevenue += price * (p.total_students ?? 0)
+      }
+    }
+
+    return Object.entries(grouped)
+      .map(([id, stats]) => ({ id, ...stats }))
+      .sort((a, b) => b.mouRevenue - a.mouRevenue)
+  }, [visits, pipelines, userRole])
 
   const revenueCards = [
     {
@@ -246,6 +293,57 @@ export default function DashboardPage() {
           </div>
         </CardContent>
       </Card>
+
+      {userRole === "admin" && (
+        <Card className="border-border bg-card">
+          <CardHeader>
+            <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
+              <Users className="size-5 text-orange-500" />
+              Pencapaian Sales
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border text-muted-foreground">
+                    <th className="text-left py-3 px-2 font-medium">Sales</th>
+                    <th className="text-center py-3 px-2 font-medium">Kunjungan</th>
+                    <th className="text-center py-3 px-2 font-medium">Minggu Ini</th>
+                    <th className="text-center py-3 px-2 font-medium">Pipeline</th>
+                    <th className="text-right py-3 px-2 font-medium">Revenue (MoU)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {salesPerformance.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="text-center py-8 text-muted-foreground">
+                        Belum ada data kunjungan atau pipeline.
+                      </td>
+                    </tr>
+                  ) : (
+                    salesPerformance.map((s) => (
+                      <tr key={s.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                        <td className="py-3 px-2 font-medium text-foreground">{s.name}</td>
+                        <td className="py-3 px-2 text-center text-muted-foreground">{s.totalVisits}</td>
+                        <td className="py-3 px-2 text-center">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-orange-500/10 px-2 py-0.5 text-xs font-medium text-orange-500">
+                            {s.weeklyVisits}
+                          </span>
+                        </td>
+                        <td className="py-3 px-2 text-center text-muted-foreground">{s.totalPipelines}</td>
+                        <td className="py-3 px-2 text-right font-medium text-emerald-400">
+                          {formatRupiah(s.mouRevenue)}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

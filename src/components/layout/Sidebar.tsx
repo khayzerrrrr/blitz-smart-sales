@@ -9,15 +9,18 @@ import { useAuthStore } from "@/store/useAuthStore"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
-const menuItems = [
-  { href: "/", label: "Dashboard", icon: "/icons/dashboard.svg" },
+const adminItems = [
   { href: "/stock", label: "Stock DB", icon: "/icons/stock.svg" },
+  { href: "/akun", label: "Akun", icon: "/icons/akun.svg" },
+]
+
+const sharedItems = [
+  { href: "/", label: "Dashboard", icon: "/icons/dashboard.svg" },
   { href: "/kunjungan", label: "Kunjungan", icon: "/icons/kunjungan.svg" },
   { href: "/peta", label: "Peta", icon: "/icons/peta.svg" },
   { href: "/foto", label: "Foto", icon: "/icons/foto.svg" },
   { href: "/sekolah", label: "Sekolah", icon: "/icons/sekolah.svg" },
   { href: "/kanban", label: "Kanban", icon: "/icons/kanban.svg" },
-  { href: "/akun", label: "Akun", icon: "/icons/akun.svg" },
 ]
 
 export function SidebarContent() {
@@ -34,6 +37,8 @@ export function SidebarContent() {
     .join("")
     .slice(0, 2)
     .toUpperCase()
+
+  const menuItems = userRole === "admin" ? [...sharedItems, ...adminItems] : sharedItems
 
   return (
     <div className="flex h-full flex-col">

@@ -4,26 +4,41 @@ import { useState, useRef, useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
+import { useAuthStore } from "@/store/useAuthStore"
 import { Ellipsis } from "lucide-react"
 
-const mainItems = [
-  { href: "/", label: "Dashboard", icon: "/icons/dashboard.svg" },
+const adminMainItems = [
   { href: "/stock", label: "Stock DB", icon: "/icons/stock.svg" },
+]
+
+const sharedMainItems = [
+  { href: "/", label: "Dashboard", icon: "/icons/dashboard.svg" },
   { href: "/kunjungan", label: "Kunjungan", icon: "/icons/kunjungan.svg" },
   { href: "/kanban", label: "Kanban", icon: "/icons/kanban.svg" },
 ]
 
-const moreItems = [
+const adminMoreItems = [
+  { href: "/akun", label: "Akun", icon: "/icons/akun.svg" },
+]
+
+const sharedMoreItems = [
   { href: "/peta", label: "Peta", icon: "/icons/peta.svg" },
   { href: "/foto", label: "Foto", icon: "/icons/foto.svg" },
   { href: "/sekolah", label: "Sekolah", icon: "/icons/sekolah.svg" },
-  { href: "/akun", label: "Akun", icon: "/icons/akun.svg" },
 ]
 
 export function BottomNav() {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
+  const user = useAuthStore((s) => s.user)
+  const userRole = user?.user_metadata?.role ?? "sales"
+  const mainItems = userRole === "admin"
+    ? [...sharedMainItems, ...adminMainItems]
+    : sharedMainItems
+  const moreItems = userRole === "admin"
+    ? [...sharedMoreItems, ...adminMoreItems]
+    : sharedMoreItems
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
