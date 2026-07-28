@@ -201,6 +201,29 @@ EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
 -- ============================================
+-- Storage bucket + RLS untuk school-photos
+-- ============================================
+INSERT INTO storage.buckets (id, name, public, avif_autodetection)
+VALUES ('school-photos', 'school-photos', true, false)
+ON CONFLICT (id) DO UPDATE SET public = true;
+
+DROP POLICY IF EXISTS "school_photos_select" ON storage.objects;
+DROP POLICY IF EXISTS "school_photos_insert" ON storage.objects;
+DROP POLICY IF EXISTS "school_photos_delete" ON storage.objects;
+
+CREATE POLICY "school_photos_select" ON storage.objects
+  FOR SELECT TO authenticated, anon
+  USING (bucket_id = 'school-photos');
+
+CREATE POLICY "school_photos_insert" ON storage.objects
+  FOR INSERT TO authenticated
+  WITH CHECK (bucket_id = 'school-photos');
+
+CREATE POLICY "school_photos_delete" ON storage.objects
+  FOR DELETE TO authenticated
+  USING (bucket_id = 'school-photos');
+
+-- ============================================
 -- Seed Data
 -- ============================================
 INSERT INTO schools (name, address, regional, total_students, total_teachers, latitude, longitude, contact_person) VALUES

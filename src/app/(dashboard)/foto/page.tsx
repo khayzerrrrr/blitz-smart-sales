@@ -91,7 +91,7 @@ export default function FotoPage() {
             <ImageIcon className="size-12 text-muted-foreground" />
             <p className="mt-4 text-muted-foreground">
               {photos.length === 0
-                ? "Belum ada foto. Jalankan SQL untuk membuat tabel school_photos dan bucket storage."
+                ? "Belum ada foto. Klik Upload untuk menambahkan foto pertama."
                 : "Tidak ditemukan."}
             </p>
           </CardContent>
