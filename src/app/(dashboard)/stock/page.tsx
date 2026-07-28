@@ -96,26 +96,14 @@ export default function StockPage() {
     queryFn: fetchAllSchools,
   })
 
-  const regionGroups: Record<string, string[]> = {
+  const regionGroups = useMemo(() => ({
     "Sumatera": ["Medan", "Pekanbaru", "Palembang", "Padang", "Aceh", "Lampung", "Jambi", "Bengkulu", "Bangka", "Batam"],
     "Jawa": ["Jakarta Pusat", "Jakarta Barat", "Jakarta Selatan", "Jakarta Timur", "Jakarta Utara", "Bandung", "Semarang", "Yogyakarta", "Surabaya", "Malang", "Tangerang", "Bogor", "Depok", "Bekasi", "Cirebon", "Kediri", "Solo"],
     "Bali & Nusa Tenggara": ["Denpasar", "Mataram", "Kupang", "Lombok"],
     "Kalimantan": ["Balikpapan", "Banjarmasin", "Pontianak", "Samarinda", "Palangkaraya"],
     "Sulawesi": ["Makassar", "Manado", "Palu", "Kendari", "Gorontalo"],
     "Papua & Maluku": ["Jayapura", "Ambon", "Ternate", "Sorong", "Manokwari"],
-  }
-
-  function getRegionGroup(regional: string): string {
-    if (!regional) return "Lainnya"
-    for (const [group, cities] of Object.entries(regionGroups)) {
-      if (cities.some((c) => regional.toLowerCase().includes(c.toLowerCase()))) {
-        return group
-      }
-    }
-    return "Lainnya"
-  }
-
-  const regionOptions = ["Semua Wilayah", ...Object.keys(regionGroups)]
+  }), [])
 
   const deleteMutation = useMutation({
     mutationFn: ({ id }: { id: string; name: string }) => deleteSchool(id),
@@ -179,8 +167,18 @@ export default function StockPage() {
     maxFiles: 1,
   })
 
-  const filtered = useMemo(() =>
-    schools.filter(
+  const filtered = useMemo(() => {
+    function getRegionGroup(regional: string): string {
+      if (!regional) return "Lainnya"
+      for (const [group, cities] of Object.entries(regionGroups)) {
+        if (cities.some((c) => regional.toLowerCase().includes(c.toLowerCase()))) {
+          return group
+        }
+      }
+      return "Lainnya"
+    }
+
+    return schools.filter(
       (s) => {
         const matchSearch =
           s.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -190,7 +188,8 @@ export default function StockPage() {
           getRegionGroup(s.regional ?? "") === regionFilter
         return matchSearch && matchRegion
       }
-    ), [schools, search, regionFilter])
+    )
+  }, [schools, search, regionFilter, regionGroups])
 
   const filteredIds = useMemo(() => new Set(filtered.map((s) => s.id)), [filtered])
 

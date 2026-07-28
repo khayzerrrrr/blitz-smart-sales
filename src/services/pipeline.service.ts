@@ -7,6 +7,7 @@ export interface PipelineRecord {
   school_name: string
   contact_person: string
   total_students: number
+  created_by: string
   stage: string
   offer_price: number | null
   deal_price: number | null
@@ -17,8 +18,29 @@ export interface PipelineRecord {
 
 export type CreatePipelineInput = Omit<
   PipelineRecord,
-  "id" | "created_at" | "updated_at"
+  "id" | "created_by" | "created_at" | "updated_at"
 >
+
+async function getUserId(): Promise<string | null> {
+  const supabase = createClient()
+  const { data } = await supabase.auth.getUser()
+  return data.user?.id ?? null
+}
+
+export async function createPipeline(
+  input: CreatePipelineInput
+): Promise<PipelineRecord> {
+  const supabase = createClient()
+  const userId = await getUserId()
+  const { data, error } = await supabase
+    .from("pipelines")
+    .insert([{ ...input, created_by: userId }])
+    .select()
+    .single()
+
+  if (error) throw new Error(error.message)
+  return data as PipelineRecord
+}
 
 export async function fetchPipelines(): Promise<PipelineRecord[]> {
   const supabase = createClient()
@@ -29,20 +51,6 @@ export async function fetchPipelines(): Promise<PipelineRecord[]> {
 
   if (error) throw new Error(error.message)
   return data ?? []
-}
-
-export async function createPipeline(
-  input: CreatePipelineInput
-): Promise<PipelineRecord> {
-  const supabase = createClient()
-  const { data, error } = await supabase
-    .from("pipelines")
-    .insert([input])
-    .select()
-    .single()
-
-  if (error) throw new Error(error.message)
-  return data as PipelineRecord
 }
 
 export async function checkPipelineExists(

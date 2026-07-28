@@ -1,5 +1,6 @@
 -- ============================================
--- Blitz CRM - Database Schema v2
+-- Blitz CRM - Initial Schema & Final RLS
+-- Jalankan di Supabase SQL Editor (sekali)
 -- ============================================
 
 -- Enable UUID extension
@@ -23,16 +24,6 @@ CREATE TABLE IF NOT EXISTS schools (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::TEXT, NOW()) NOT NULL
 );
 
--- Add created_by to existing tables if missing
-DO $$ BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'schools' AND column_name = 'created_by'
-  ) THEN
-    ALTER TABLE schools ADD COLUMN created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL;
-  END IF;
-END $$;
-
 -- ============================================
 -- Table: visits (Kunjungan Harian)
 -- ============================================
@@ -50,6 +41,8 @@ CREATE TABLE IF NOT EXISTS visits (
   total_students INTEGER DEFAULT 0,
   total_teachers INTEGER DEFAULT 0,
   has_bilingual BOOLEAN DEFAULT FALSE,
+  latitude DECIMAL DEFAULT NULL,
+  longitude DECIMAL DEFAULT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::TEXT, NOW()) NOT NULL
 );
 
@@ -62,6 +55,7 @@ CREATE TABLE IF NOT EXISTS pipelines (
   school_name TEXT NOT NULL,
   contact_person TEXT DEFAULT '',
   total_students INTEGER DEFAULT 0,
+  created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL DEFAULT auth.uid(),
   stage TEXT CHECK (stage IN ('Prospect', 'Presentasi', 'Proposal', 'MoU', 'Not This Time')) DEFAULT 'Prospect',
   offer_price INTEGER DEFAULT NULL,
   deal_price INTEGER DEFAULT NULL,
@@ -70,7 +64,7 @@ CREATE TABLE IF NOT EXISTS pipelines (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::TEXT, NOW()) NOT NULL
 );
 
--- Add UNIQUE constraint on school_id if missing
+-- UNIQUE constraint on pipelines.school_id
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_constraint WHERE conname = 'pipelines_school_id_unique'
@@ -86,56 +80,128 @@ CREATE TABLE IF NOT EXISTS school_photos (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   school_id UUID REFERENCES schools(id) ON DELETE CASCADE NOT NULL,
   school_name TEXT DEFAULT '',
-  uploaded_by TEXT DEFAULT '',
+  uploaded_by UUID DEFAULT auth.uid(),
   storage_path TEXT NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::TEXT, NOW()) NOT NULL
 );
 
 -- ============================================
--- Enable Row Level Security
+-- Row Level Security
 -- ============================================
 ALTER TABLE schools ENABLE ROW LEVEL SECURITY;
 ALTER TABLE visits ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pipelines ENABLE ROW LEVEL SECURITY;
 ALTER TABLE school_photos ENABLE ROW LEVEL SECURITY;
 
--- ============================================
--- RLS Policies
--- ============================================
-
--- Schools: authenticated users can read all, only creator can insert/update/delete
+-- Drop old policies first
+DROP POLICY IF EXISTS "schools_select_owned_or_visited" ON schools;
+DROP POLICY IF EXISTS "schools_insert_auth" ON schools;
+DROP POLICY IF EXISTS "schools_update_own" ON schools;
+DROP POLICY IF EXISTS "schools_delete_own" ON schools;
+DROP POLICY IF EXISTS "visits_select_own" ON visits;
+DROP POLICY IF EXISTS "visits_insert_own" ON visits;
+DROP POLICY IF EXISTS "visits_update_own" ON visits;
+DROP POLICY IF EXISTS "visits_delete_own" ON visits;
+DROP POLICY IF EXISTS "pipelines_select_related" ON pipelines;
+DROP POLICY IF EXISTS "pipelines_insert_auth" ON pipelines;
+DROP POLICY IF EXISTS "pipelines_update_own" ON pipelines;
+DROP POLICY IF EXISTS "pipelines_delete_own" ON pipelines;
+DROP POLICY IF EXISTS "photos_select_related" ON school_photos;
+DROP POLICY IF EXISTS "photos_insert_auth" ON school_photos;
+DROP POLICY IF EXISTS "photos_delete_own" ON school_photos;
+DROP POLICY IF EXISTS "Schools are readable by authenticated users" ON schools;
+DROP POLICY IF EXISTS "Schools are insertable by authenticated users" ON schools;
+DROP POLICY IF EXISTS "Schools are updatable by authenticated users" ON schools;
+DROP POLICY IF EXISTS "Schools are deletable by authenticated users" ON schools;
+DROP POLICY IF EXISTS "Visits are readable by authenticated users" ON visits;
+DROP POLICY IF EXISTS "Visits are insertable by authenticated users" ON visits;
+DROP POLICY IF EXISTS "Visits are updatable by authenticated users" ON visits;
+DROP POLICY IF EXISTS "Visits are deletable by authenticated users" ON visits;
+DROP POLICY IF EXISTS "Pipelines are readable by authenticated users" ON pipelines;
+DROP POLICY IF EXISTS "Pipelines are insertable by authenticated users" ON pipelines;
+DROP POLICY IF EXISTS "Pipelines are updatable by authenticated users" ON pipelines;
+DROP POLICY IF EXISTS "Pipelines are deletable by authenticated users" ON pipelines;
+DROP POLICY IF EXISTS "Photos are readable by authenticated users" ON school_photos;
+DROP POLICY IF EXISTS "Photos are insertable by authenticated users" ON school_photos;
+DROP POLICY IF EXISTS "Photos are deletable by authenticated users" ON school_photos;
 DROP POLICY IF EXISTS "Enable all for authenticated" ON schools;
 DROP POLICY IF EXISTS "Enable all for authenticated" ON visits;
 DROP POLICY IF EXISTS "Enable all for authenticated" ON pipelines;
 DROP POLICY IF EXISTS "Enable all for authenticated" ON school_photos;
 
-CREATE POLICY "Schools are readable by authenticated users" ON schools FOR SELECT USING (auth.role() = 'authenticated');
-CREATE POLICY "Schools are insertable by authenticated users" ON schools FOR INSERT WITH CHECK (auth.role() = 'authenticated');
-CREATE POLICY "Schools are updatable by authenticated users" ON schools FOR UPDATE USING (auth.role() = 'authenticated');
-CREATE POLICY "Schools are deletable by authenticated users" ON schools FOR DELETE USING (auth.role() = 'authenticated');
+-- SCHOOLS: read own/visited, insert any auth, update/delete own
+CREATE POLICY "schools_select_owned_or_visited" ON schools
+  FOR SELECT USING (
+    auth.uid() = created_by
+    OR id IN (SELECT school_id FROM visits WHERE user_id = auth.uid())
+  );
+CREATE POLICY "schools_insert_auth" ON schools
+  FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "schools_update_own" ON schools
+  FOR UPDATE USING (auth.uid() = created_by);
+CREATE POLICY "schools_delete_own" ON schools
+  FOR DELETE USING (auth.uid() = created_by);
 
-CREATE POLICY "Visits are readable by authenticated users" ON visits FOR SELECT USING (auth.role() = 'authenticated');
-CREATE POLICY "Visits are insertable by authenticated users" ON visits FOR INSERT WITH CHECK (auth.role() = 'authenticated');
-CREATE POLICY "Visits are updatable by authenticated users" ON visits FOR UPDATE USING (auth.role() = 'authenticated');
-CREATE POLICY "Visits are deletable by authenticated users" ON visits FOR DELETE USING (auth.role() = 'authenticated');
+-- VISITS: own only
+CREATE POLICY "visits_select_own" ON visits
+  FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "visits_insert_own" ON visits
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "visits_update_own" ON visits
+  FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "visits_delete_own" ON visits
+  FOR DELETE USING (auth.uid() = user_id);
 
-CREATE POLICY "Pipelines are readable by authenticated users" ON pipelines FOR SELECT USING (auth.role() = 'authenticated');
-CREATE POLICY "Pipelines are insertable by authenticated users" ON pipelines FOR INSERT WITH CHECK (auth.role() = 'authenticated');
-CREATE POLICY "Pipelines are updatable by authenticated users" ON pipelines FOR UPDATE USING (auth.role() = 'authenticated');
-CREATE POLICY "Pipelines are deletable by authenticated users" ON pipelines FOR DELETE USING (auth.role() = 'authenticated');
+-- PIPELINES: read related, insert any auth, update/delete own
+CREATE POLICY "pipelines_select_related" ON pipelines
+  FOR SELECT USING (
+    auth.uid() = created_by
+    OR school_id IN (SELECT id FROM schools WHERE created_by = auth.uid())
+    OR school_id IN (SELECT school_id FROM visits WHERE user_id = auth.uid())
+  );
+CREATE POLICY "pipelines_insert_auth" ON pipelines
+  FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "pipelines_update_own" ON pipelines
+  FOR UPDATE USING (auth.uid() = created_by);
+CREATE POLICY "pipelines_delete_own" ON pipelines
+  FOR DELETE USING (auth.uid() = created_by);
 
-CREATE POLICY "Photos are readable by authenticated users" ON school_photos FOR SELECT USING (auth.role() = 'authenticated');
-CREATE POLICY "Photos are insertable by authenticated users" ON school_photos FOR INSERT WITH CHECK (auth.role() = 'authenticated');
-CREATE POLICY "Photos are deletable by authenticated users" ON school_photos FOR DELETE USING (auth.role() = 'authenticated');
+-- PHOTOS: read related, insert any auth, delete uploader/owner
+CREATE POLICY "photos_select_related" ON school_photos
+  FOR SELECT USING (
+    school_id IN (SELECT id FROM schools WHERE created_by = auth.uid())
+    OR school_id IN (SELECT school_id FROM visits WHERE user_id = auth.uid())
+  );
+CREATE POLICY "photos_insert_auth" ON school_photos
+  FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "photos_delete_own" ON school_photos
+  FOR DELETE USING (
+    uploaded_by = auth.uid()
+    OR school_id IN (SELECT id FROM schools WHERE created_by = auth.uid())
+  );
 
 -- ============================================
--- Enable Realtime for pipelines + photos
+-- Realtime
 -- ============================================
-ALTER PUBLICATION supabase_realtime ADD TABLE pipelines;
-ALTER PUBLICATION supabase_realtime ADD TABLE school_photos;
+DO $$ BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE schools;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+DO $$ BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE visits;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+DO $$ BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE pipelines;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+DO $$ BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE school_photos;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- ============================================
--- Seed Data: Insert sample stock schools
+-- Seed Data
 -- ============================================
 INSERT INTO schools (name, address, regional, total_students, total_teachers, latitude, longitude, contact_person) VALUES
   ('SMA Negeri 1 Jakarta', 'Jl. Budi Utomo No.7, Jakarta Pusat', 'Jakarta Pusat', 850, 52, -6.1640, 106.8340, 'Drs. H. Suyitno, M.Pd'),

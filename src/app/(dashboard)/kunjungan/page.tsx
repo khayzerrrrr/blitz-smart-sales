@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
+import { useRealtime } from "@/hooks/useRealtime"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -44,6 +45,8 @@ export default function KunjunganPage() {
   const [statusFilter, setStatusFilter] = useState("all")
   const [search, setSearch] = useState("")
   const [dialogOpen, setDialogOpen] = useState(false)
+
+  useRealtime({ table: "visits", queryKey: ["visits"] })
 
   const { data: visitsRaw = [], isLoading } = useQuery({
     queryKey: ["visits"],
@@ -189,7 +192,7 @@ export default function KunjunganPage() {
                         {visit.notes}
                       </TableCell>
                       <TableCell>
-                        {(visit as any).latitude != null ? (
+                        {visit.latitude != null ? (
                           <MapPin className="size-4 text-green-400" />
                         ) : (
                           <span className="text-muted-foreground">-</span>

@@ -3,7 +3,6 @@ import {
   View, Text, StyleSheet, ScrollView, ActivityIndicator,
 } from "react-native"
 import { supabase } from "../lib/supabase"
-import { fetchAllSchools } from "../services/school.service"
 
 type SchoolRow = { id: string; name: string; regional: string; total_students: number }
 

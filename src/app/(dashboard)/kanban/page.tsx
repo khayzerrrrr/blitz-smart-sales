@@ -1,14 +1,13 @@
 "use client"
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { useCallback, useEffect } from "react"
-import { createClient } from "@/lib/supabase/client"
+import { useCallback } from "react"
+import { useRealtime } from "@/hooks/useRealtime"
 import {
   fetchPipelines,
   createPipeline,
   updatePipelineStage,
   updatePipelinePrice,
-  type PipelineRecord,
 } from "@/services/pipeline.service"
 import { KanbanBoard } from "@/components/features/KanbanBoard"
 import type { PipelineStage } from "@/components/features/KanbanBoard"
@@ -91,23 +90,7 @@ export default function KanbanPage() {
     },
     [addCardMutation]
   )
-  useEffect(() => {
-    const supabase = createClient()
-    const channel = supabase
-      .channel("pipelines-changes")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "pipelines" },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ["pipelines"] })
-        }
-      )
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [queryClient])
+  useRealtime({ table: "pipelines", queryKey: ["pipelines"] })
 
   const handleProposalPriceChange = useCallback(
     (id: string, price: number) => {

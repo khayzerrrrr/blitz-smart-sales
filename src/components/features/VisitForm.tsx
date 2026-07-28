@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -24,10 +24,13 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { visitFormSchema, type VisitFormValues } from "@/lib/validations/visit-schema"
 import { format } from "date-fns"
 import { toast } from "sonner"
+import { Camera, X } from "lucide-react"
 import { fetchAllSchools, createSchool } from "@/services/school.service"
 import { createVisit, type CreateVisitInput } from "@/services/visit.service"
 import { checkPipelineExists, createPipeline } from "@/services/pipeline.service"
+import { createClient } from "@/lib/supabase/client"
 import { SchoolCombobox } from "@/components/features/SchoolCombobox"
+import { LocationPicker } from "@/components/features/LocationPicker"
 import { CreateSchoolModal } from "@/components/features/CreateSchoolModal"
 import { useAuthStore } from "@/store/useAuthStore"
 
@@ -39,6 +42,11 @@ export function VisitForm({ onSubmit }: VisitFormProps) {
   const queryClient = useQueryClient()
   const [createModalOpen, setCreateModalOpen] = useState(false)
   const [newSchoolName, setNewSchoolName] = useState("")
+  const [latitude, setLatitude] = useState<number | null>(null)
+  const [longitude, setLongitude] = useState<number | null>(null)
+  const [photoFile, setPhotoFile] = useState<File | null>(null)
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const authUser = useAuthStore((s) => s.user)
 
   const { data: schools = [] } = useQuery({
@@ -76,6 +84,11 @@ export function VisitForm({ onSubmit }: VisitFormProps) {
       hasBilingual: "Tidak",
     },
   })
+
+  const watchedSchoolId = form.watch("schoolId")
+  const selectedSchool = watchedSchoolId
+    ? schools.find((s) => s.id === watchedSchoolId) ?? null
+    : null
 
   const mappedSchools = schools.map((s) => ({
     id: s.id,
@@ -137,6 +150,19 @@ export function VisitForm({ onSubmit }: VisitFormProps) {
     }
   }
 
+  const handleLocationChange = (lat: number, lng: number) => {
+    setLatitude(lat)
+    setLongitude(lng)
+  }
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setPhotoFile(file)
+      setPhotoPreview(URL.createObjectURL(file))
+    }
+  }
+
   const handleSubmit = async (values: VisitFormValues) => {
     try {
       const selected = schools.find((s) => s.id === values.schoolId)
@@ -153,9 +179,10 @@ export function VisitForm({ onSubmit }: VisitFormProps) {
         total_students: values.totalStudents,
         total_teachers: values.totalTeachers,
         has_bilingual: values.hasBilingual === "Ya",
+        latitude,
+        longitude,
       }
 
-      // Check if pipeline exists, create if not
       const existingPipeline = await checkPipelineExists(values.schoolId)
       if (!existingPipeline) {
         await createPipeline({
@@ -172,8 +199,31 @@ export function VisitForm({ onSubmit }: VisitFormProps) {
       }
 
       await visitMutation.mutateAsync(input)
+
+      if (photoFile) {
+        const supabaseClient = createClient()
+        const ext = photoFile.name.split(".").pop() ?? "jpg"
+        const path = `${values.schoolId}/${Date.now()}.${ext}`
+        const { error: uploadError } = await supabaseClient.storage
+          .from("school-photos")
+          .upload(path, photoFile, { upsert: true })
+        if (!uploadError) {
+          await supabaseClient.from("school_photos").insert({
+            school_id: values.schoolId,
+            school_name: selected?.name ?? "Unknown",
+            storage_path: `school-photos/${path}`,
+            uploaded_by: authUser?.id,
+          })
+          queryClient.invalidateQueries({ queryKey: ["photos"] })
+        }
+      }
+
       toast.success(`Kunjungan ke "${selected?.name}" berhasil disimpan!`)
       form.reset()
+      setLatitude(null)
+      setLongitude(null)
+      setPhotoFile(null)
+      setPhotoPreview(null)
       onSubmit?.()
     } catch (err) {
       toast.error(`Gagal: ${err instanceof Error ? err.message : "Unknown error"}`)
@@ -350,6 +400,44 @@ export function VisitForm({ onSubmit }: VisitFormProps) {
               </FormItem>
             )}
           />
+
+          <LocationPicker
+            latitude={latitude}
+            longitude={longitude}
+            schoolLatitude={selectedSchool?.latitude}
+            schoolLongitude={selectedSchool?.longitude}
+            schoolName={selectedSchool?.name}
+            onChange={handleLocationChange}
+          />
+
+          <div className="space-y-2">
+            <FormLabel className="text-muted-foreground">Foto Kunjungan</FormLabel>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={handlePhotoChange}
+              className="hidden"
+            />
+            {photoPreview ? (
+              <div className="relative rounded-lg overflow-hidden border border-border">
+                <img src={photoPreview} alt="Preview" className="w-full h-40 object-cover" />
+                <button
+                  type="button"
+                  onClick={() => { setPhotoFile(null); setPhotoPreview(null) }}
+                  className="absolute top-2 right-2 p-1 rounded-full bg-black/50 text-white hover:bg-black/70"
+                >
+                  <X className="size-4" />
+                </button>
+              </div>
+            ) : (
+              <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} className="gap-2 border-border text-muted-foreground hover:text-foreground w-full">
+                <Camera className="size-4" />
+                Ambil / Pilih Foto
+              </Button>
+            )}
+          </div>
 
           <Button
             type="submit"

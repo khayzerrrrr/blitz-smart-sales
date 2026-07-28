@@ -26,7 +26,7 @@ export async function setupTestAccounts() {
 
   for (const u of users) {
     try {
-      const { data, error } = await supabase.auth.admin.createUser({
+      const { error } = await supabase.auth.admin.createUser({
         email: u.email,
         password: u.password,
         email_confirm: true,

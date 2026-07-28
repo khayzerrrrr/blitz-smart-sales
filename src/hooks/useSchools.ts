@@ -1,13 +1,17 @@
 import { useMemo, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { fetchAllSchools, fetchMySchools, type SchoolRecord } from "@/services/school.service"
+import { useRealtime } from "@/hooks/useRealtime"
 
 export function useSchools(mySchoolsOnly = false) {
   const [search, setSearch] = useState("")
   const [regionalFilter, setRegionalFilter] = useState("")
 
+  const queryKey = ["schools", mySchoolsOnly ? "mine" : "all"]
+  const { status } = useRealtime({ table: "schools", queryKey })
+
   const { data: allSchools = [], isLoading, error } = useQuery({
-    queryKey: ["schools", mySchoolsOnly ? "mine" : "all"],
+    queryKey,
     queryFn: mySchoolsOnly ? fetchMySchools : fetchAllSchools,
   })
 
@@ -43,5 +47,6 @@ export function useSchools(mySchoolsOnly = false) {
     regionalFilter,
     setRegionalFilter,
     regionals,
+    realtimeStatus: status,
   }
 }

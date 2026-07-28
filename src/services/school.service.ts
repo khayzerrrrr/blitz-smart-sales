@@ -10,14 +10,21 @@ export interface SchoolRecord {
   latitude: number
   longitude: number
   contact_person: string
+  created_by: string
   created_at: string
   updated_at: string
 }
 
 export type CreateSchoolInput = Omit<
   SchoolRecord,
-  "id" | "created_at" | "updated_at"
+  "id" | "created_by" | "created_at" | "updated_at"
 >
+
+async function getUserId(): Promise<string | null> {
+  const supabase = createClient()
+  const { data } = await supabase.auth.getUser()
+  return data.user?.id ?? null
+}
 
 export async function fetchAllSchools(): Promise<SchoolRecord[]> {
   const supabase = createClient()
@@ -50,9 +57,10 @@ export async function createSchool(
   input: CreateSchoolInput
 ): Promise<SchoolRecord> {
   const supabase = createClient()
+  const userId = await getUserId()
   const { data, error } = await supabase
     .from("schools")
-    .insert([input])
+    .insert([{ ...input, created_by: userId }])
     .select()
     .single()
 
@@ -64,9 +72,11 @@ export async function createSchoolsBatch(
   inputs: CreateSchoolInput[]
 ): Promise<SchoolRecord[]> {
   const supabase = createClient()
+  const userId = await getUserId()
+  const records = inputs.map((i) => ({ ...i, created_by: userId }))
   const { data, error } = await supabase
     .from("schools")
-    .insert(inputs)
+    .insert(records)
     .select()
 
   if (error) throw new Error(error.message)

@@ -19,25 +19,30 @@ function getDeviceInfo(): "android" | "ios" | "desktop" {
   return "desktop"
 }
 
-function isStandalone(): boolean {
-  if (typeof window === "undefined") return false
-  return window.matchMedia("(display-mode: standalone)").matches
-}
-
 export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
-  const [device, setDevice] = useState<"android" | "ios" | "desktop">("desktop")
+  const [checkingSession, setCheckingSession] = useState(true)
+  const [device] = useState(getDeviceInfo)
   const [showPwaGuide, setShowPwaGuide] = useState(false)
-  const [installed, setInstalled] = useState(false)
+  const [installed, setInstalled] = useState(() => {
+    if (typeof window === "undefined") return false
+    return window.matchMedia("(display-mode: standalone)").matches
+  })
   const [installable, setInstallable] = useState(false)
   const deferredPrompt = useRef<BeforeInstallPromptEvent | null>(null)
   const router = useRouter()
 
   useEffect(() => {
-    setDevice(getDeviceInfo())
-    setInstalled(isStandalone())
+    const supabase = createClient()
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        router.replace("/")
+      } else {
+        setCheckingSession(false)
+      }
+    })
 
     const handler = (e: Event) => {
       e.preventDefault()
@@ -56,19 +61,26 @@ export default function LoginPage() {
     return () => {
       window.removeEventListener("beforeinstallprompt", handler)
     }
-  }, [])
+  }, [router])
 
   const handleInstallPwa = useCallback(async () => {
     if (!deferredPrompt.current) return
     deferredPrompt.current.prompt()
     const { outcome } = await deferredPrompt.current.userChoice
     if (outcome === "accepted") {
-      setInstalled(true)
       toast.success("Aplikasi terpasang!")
     }
     deferredPrompt.current = null
     setInstallable(false)
   }, [])
+
+  if (checkingSession) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="size-8 animate-spin rounded-full border-2 border-orange-500 border-t-transparent" />
+      </div>
+    )
+  }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -82,7 +94,7 @@ export default function LoginPage() {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) throw error
       toast.success("Login berhasil!")
-      router.push("/")
+      router.replace("/")
     } catch (err) {
       toast.error(`Login gagal: ${err instanceof Error ? err.message : "Periksa email & password"}`)
     } finally {

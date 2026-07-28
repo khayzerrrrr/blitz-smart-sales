@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useRealtime } from "@/hooks/useRealtime"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -23,7 +24,7 @@ import { Search, X, Upload, ImageIcon } from "lucide-react"
 import { format } from "date-fns"
 import { createClient } from "@/lib/supabase/client"
 import { fetchAllSchools } from "@/services/school.service"
-import { fetchPhotos, createPhoto, type PhotoRecord } from "@/services/photo.service"
+import { fetchPhotos } from "@/services/photo.service"
 import { toast } from "sonner"
 import { useAuthStore } from "@/store/useAuthStore"
 
@@ -32,6 +33,8 @@ export default function FotoPage() {
   const [search, setSearch] = useState("")
   const [lightbox, setLightbox] = useState<string | null>(null)
   const [uploadOpen, setUploadOpen] = useState(false)
+
+  useRealtime({ table: "school_photos", queryKey: ["photos"] })
 
   const { data: photos = [], isLoading } = useQuery({
     queryKey: ["photos"],

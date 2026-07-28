@@ -14,6 +14,8 @@ export interface VisitRecord {
   total_students: number
   total_teachers: number
   has_bilingual: boolean
+  latitude: number | null
+  longitude: number | null
   created_at: string
 }
 

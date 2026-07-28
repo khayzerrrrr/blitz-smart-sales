@@ -45,9 +45,15 @@ npx shadcn@latest add <component>  # Add shadcn components
 - Accent: `#f97316` (orange-500)
 - Borders: `#1e293b` (slate-800)
 
-## Project Status
-- Fase 0: Setup - COMPLETE
-- Fase 1: Frontend UI with Mock Data - COMPLETE
-- Fase 2: Supabase Integration - PENDING
-- Fase 3: Live Data & Realtime - PENDING
-- Fase 4: QA & Deployment - PENDING
+## Project Status (Audited)
+- Fase 0: Setup - 100% ✅
+- Fase 1: Frontend UI with Mock Data - 100% ✅ (UI lengkap, mock data di `src/data/mock-data.ts`)
+- Fase 2: Supabase Integration - 100% ✅ (client, server, migrasi final, RLS strict, service layer, server actions, GPS, auto `created_by`)
+- Fase 3: Live Data & Realtime - 100% ✅ (useRealtime hook reusable, semua tabel: schools, visits, pipelines, school_photos)
+- Fase 4: QA & Deployment - 15% ⏳ (Vercel terdaftar, 0 test, 0 CI/CD)
+
+## Critical Issues
+1. 🔴 `SUPABASE_SERVICE_ROLE_KEY` di `.env.local` masih placeholder — isi dari dashboard Supabase (Settings > API)
+2. 🔴 **Tidak ada test** (unit/E2E) — perlu Jest/Vitest + Playwright
+3. 🟡 **Mobile-app** (`mobile-app/`) — kredensial Supabase sudah diisi, tapi StockScreen perlu service layer
+4. 🟢 **proxy.ts matcher** — sudah exclude static files (.apk, .png, dll)
